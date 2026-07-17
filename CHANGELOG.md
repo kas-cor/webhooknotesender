@@ -120,7 +120,6 @@ Full-featured MVP as specified in the technical documentation.
 
 - Project scaffolding with Gradle KTS, version catalog
 - Package structure following Clean Architecture guidelines
-- Initial technical specification (`Android_Webhook_Sender_TZ.md`)
 
 ---
 
