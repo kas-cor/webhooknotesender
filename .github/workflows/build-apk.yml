@@ -227,9 +227,12 @@ jobs:
       run: |
         echo "$KEYSTORE_BASE64" | base64 -d > webhooknotesender-release.jks 2>/dev/null || true
 
-    - name: Build Release APK
+    - name: Build and Sign Release APK
       env:
+        KEYSTORE_PATH: ${{ github.workspace }}/webhooknotesender-release.jks
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleRelease 2>&1 | tail -20
 
     - name: Rename APKs

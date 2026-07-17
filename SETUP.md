@@ -46,6 +46,8 @@ cat webhooknotesender-release.jks.base64 | xclip     # Linux (X11)
 |---|---|
 | `KEYSTORE_BASE64` | Содержимое файла `webhooknotesender-release.jks.base64` (полная base64-строка) |
 | `KEYSTORE_PASSWORD` | Пароль, который вы задали при создании keystore |
+| `KEY_ALIAS` | Псевдоним ключа (по умолчанию: `webhooknotesender`) |
+| `KEY_PASSWORD` | Пароль ключа (если не задан, используется `KEYSTORE_PASSWORD`) |
 
 ![GitHub Secrets](https://docs.github.com/assets/cb-25923/images/help/settings/actions-secrets-setting.png)
 
