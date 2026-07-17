@@ -99,7 +99,7 @@ webhooknotesender/
 │   └── util/                                 # Base64Encoder, NetworkMonitor, ShortcutHelper
 ├── app/src/main/res/
 │   ├── values/strings.xml                    # English (72 strings)
-│   └── values-ru/strings.xml                 # Russian (72 строки)
+│   └── values-ru/strings.xml                 # Russian (72 strings)
 ├── build.sh                                  # Universal build script
 ├── .github/workflows/build-apk.yml           # CI/CD pipeline
 └── AGENTS.md                                 # AI agent documentation
@@ -184,6 +184,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 export KEYSTORE_PASSWORD=your-password
 ./build.sh --release
 ```
+
+> **CI/CD & GitHub Secrets setup:** Detailed guide on keystore creation, Base64 encoding, GitHub Secrets configuration, and the release process — see [SETUP.md](SETUP.md).
 
 ---
 

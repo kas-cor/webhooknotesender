@@ -48,9 +48,6 @@ jobs:
       run: ./gradlew lintDebug 2>&1 | tail -30
       continue-on-error: true
 
-    - name: Check dependencies
-      run: ./gradlew dependencyCheckAnalyze 2>&1 | tail -20
-      continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
@@ -99,7 +96,7 @@ jobs:
 
     - name: Validate string translations
       run: |
-        echo "Проверка наличия всех строк в обоих языках..."
+        echo "Checking that all string keys exist in both locales..."
         EN_KEYS=$(grep -oP 'name="\K[^"]+' app/src/main/res/values/strings.xml | sort)
         RU_KEYS=$(grep -oP 'name="\K[^"]+' app/src/main/res/values-ru/strings.xml | sort)
         
@@ -107,16 +104,16 @@ jobs:
         MISSING_IN_EN=$(comm -23 <(echo "$RU_KEYS") <(echo "$EN_KEYS"))
         
         if [ -n "$MISSING_IN_RU" ]; then
-          echo "Строки отсутствуют в values-ru/strings.xml:"
+          echo "Missing keys in values-ru/strings.xml:"
           echo "$MISSING_IN_RU"
           exit 1
         fi
         if [ -n "$MISSING_IN_EN" ]; then
-          echo "Строки отсутствуют в values/strings.xml:"
+          echo "Missing keys in values/strings.xml:"
           echo "$MISSING_IN_EN"
           exit 1
         fi
-        echo "✅ Все строки присутствуют в обоих языках."
+        echo "✅ All string keys present in both locales."
 
   build-debug:
     runs-on: ubuntu-latest

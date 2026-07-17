@@ -161,6 +161,8 @@ export KEYSTORE_PASSWORD=your-password
 ./build.sh --release
 ```
 
+> **Настройка CI/CD и GitHub Secrets:** Подробная инструкция по созданию keystore, кодированию в Base64, настройке секретов GitHub и процессу релиза — в [SETUP.md](SETUP.md).
+
 ---
 
 ## Build-скрипт (`build.sh`) 🔧

@@ -37,8 +37,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.model.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,7 +138,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     ThemeOption(
-                        label = "Русский",
+                        label = stringResource(R.string.language_russian),
                         icon = Icons.Filled.Language,
                         isSelected = currentLanguage == "ru",
                         onClick = { viewModel.setLanguage("ru") }

@@ -1,126 +1,126 @@
 # WebhookNoteSender — Setup Guide 🚀
 
-## Настройка CI/CD и GitHub Secrets
+## Setting up CI/CD and GitHub Secrets
 
-### 1. Создание keystore для подписи release APK
+### 1. Create a keystore for release APK signing
 
-Если у вас ещё нет keystore для подписи релизных сборок, создайте его:
+If you don't have a keystore for signing release builds yet, create one:
 
 ```bash
-# Создаём keystore (запомните введённые пароли!)
+# Create keystore (remember the passwords you set!)
 keytool -genkey -v -keystore webhooknotesender-release.jks \
         -alias webhooknotesender \
         -keyalg RSA -keysize 2048 -validity 10000 \
         -storetype PKCS12
 ```
 
-> **Важно:** Никогда не коммитьте `.jks`, `.keystore` или файлы с паролями в git.  
-> Файл `.gitignore` уже настроен на исключение `*.jks` и `*.keystore`.
+> **Important:** Never commit `.jks`, `.keystore`, or password files to git.  
+> The `.gitignore` is already configured to exclude `*.jks` and `*.keystore`.
 
-### 2. Кодирование keystore в Base64 для GitHub Secrets
+### 2. Encode keystore to Base64 for GitHub Secrets
 
 ```bash
-# Кодируем keystore в Base64
+# Encode keystore to Base64
 base64 -w0 webhooknotesender-release.jks > webhooknotesender-release.jks.base64
 
-# Копируем содержимое
+# Copy the contents
 cat webhooknotesender-release.jks.base64 | wl-copy   # Linux (Wayland)
-# или:
+# or:
 cat webhooknotesender-release.jks.base64 | xclip     # Linux (X11)
-# или просто откройте файл и скопируйте вручную
+# or just open the file and copy manually
 ```
 
-> **После копирования удалите base64-файл:**
+> **After copying, delete the base64 file:**
 > ```bash
 > rm webhooknotesender-release.jks.base64
 > ```
 
-### 3. Настройка GitHub Secrets
+### 3. Configure GitHub Secrets
 
-Перейдите в репозиторий на GitHub:
+Navigate to your repository on GitHub:
 `https://github.com/kas-cor/webhooknotesender/settings/secrets/actions`
 
-Нажмите **«New repository secret»** и добавьте следующие секреты:
+Click **«New repository secret»** and add the following secrets:
 
-| Secret | Значение |
+| Secret | Value |
 |---|---|
-| `KEYSTORE_BASE64` | Содержимое файла `webhooknotesender-release.jks.base64` (полная base64-строка) |
-| `KEYSTORE_PASSWORD` | Пароль, который вы задали при создании keystore |
-| `KEY_ALIAS` | Псевдоним ключа (по умолчанию: `webhooknotesender`) |
-| `KEY_PASSWORD` | Пароль ключа (если не задан, используется `KEYSTORE_PASSWORD`) |
+| `KEYSTORE_BASE64` | Contents of `webhooknotesender-release.jks.base64` (full base64 string) |
+| `KEYSTORE_PASSWORD` | The password you set when creating the keystore |
+| `KEY_ALIAS` | Key alias (default: `webhooknotesender`) |
+| `KEY_PASSWORD` | Key password (if not set, `KEYSTORE_PASSWORD` is used) |
 
 ![GitHub Secrets](https://docs.github.com/assets/cb-25923/images/help/settings/actions-secrets-setting.png)
 
-### 4. Проверка CI/CD Pipeline
+### 4. Verify CI/CD Pipeline
 
-После настройки секретов, CI/CD будет работать автоматически:
+After setting up secrets, CI/CD will work automatically:
 
-1. **Push в `main` или `develop`** — запускает:
-   - `lint` — проверка кода (неблокирующая)
-   - `test` — запуск unit-тестов (19 тестов)
-   - `locales` — проверка соответствия строк EN и RU
-   - `build-debug` — сборка debug APK
+1. **Push to `main` or `develop`** — triggers:
+   - `lint` — code linting (non-blocking)
+   - `test` — run unit tests (19 tests)
+   - `locales` — validate string key parity between EN and RU
+   - `build-debug` — build debug APK
 
-2. **Push тега `v*`** (например, `v1.0`) — дополнительно:
-   - `build-release` — подписанная release сборка
-   - `release` — создание GitHub Release с APK
+2. **Push tag `v*`** (e.g., `v1.0`) — additionally:
+   - `build-release` — signed release build
+   - `release` — create GitHub Release with APK
 
-### 5. Как сделать релиз
+### 5. How to create a release
 
 ```bash
-# 1. Убедитесь, что все изменения закоммичены
+# 1. Make sure all changes are committed
 git status
 
-# 2. Создайте тег новой версии
+# 2. Create a new version tag
 git tag v1.0
 
-# 3. Запушьте тег
+# 3. Push the tag
 git push origin v1.0
 
-# 4. CI/CD автоматически:
-#    - Увеличит versionCode
-#    - Соберёт подписанный APK
-#    - Создаст GitHub Release с changelog и APK
+# 4. CI/CD will automatically:
+#    - Increment versionCode
+#    - Build a signed APK
+#    - Create a GitHub Release with changelog and APK
 ```
 
 ---
 
-## Локальный запуск CI-проверок
+## Running CI checks locally
 
-Перед пушем рекомендуется запустить те же проверки, что и в CI:
+Before pushing, it's recommended to run the same checks as CI:
 
 ```bash
-# Unit-тесты
+# Unit tests
 ./gradlew testDebugUnitTest
 
-# Линтер
+# Linter
 ./gradlew lintDebug
 
-# Сборка debug APK
+# Build debug APK
 ./build.sh
 
-# Сборка release APK (с подписью)
+# Build release APK (signed)
 export KEYSTORE_PASSWORD=your-password
 ./build.sh --release
 ```
 
 ---
 
-## Быстрый старт для нового разработчика
+## Quick start for new developers
 
 ```bash
-# Клонирование
+# Clone
 git clone git@github.com:kas-cor/webhooknotesender.git
 cd webhooknotesender
 
-# Настройка Android SDK
+# Configure Android SDK
 echo "sdk.dir=/home/your-user/Android/Sdk" > local.properties
 
-# Сборка
+# Build
 chmod +x gradlew build.sh
 ./build.sh
 
-# Запуск тестов
+# Run tests
 ./gradlew testDebugUnitTest
 ```
 
@@ -128,49 +128,49 @@ chmod +x gradlew build.sh
 
 ## Troubleshooting
 
-### CI падает с ошибкой «No key store»
+### CI fails with «No key store» error
 
-Убедитесь, что:
-1. Создан keystore (`webhooknotesender-release.jks`)
-2. Secrets `KEYSTORE_BASE64` и `KEYSTORE_PASSWORD` установлены в GitHub
-3. Base64-строка скопирована целиком (без лишних пробелов и переносов)
+Make sure:
+1. A keystore is created (`webhooknotesender-release.jks`)
+2. `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` secrets are set in GitHub
+3. The base64 string was copied entirely (no extra spaces or line breaks)
 
-### CI падает на этапе `test`
+### CI fails at the `test` stage
 
 ```bash
-# Запустите тесты локально
+# Run tests locally
 ./gradlew testDebugUnitTest
 
-# Убедитесь, что все тесты проходят
-# Если нет — исправьте ошибки и запушьте снова
+# Make sure all tests pass
+# If not — fix the errors and push again
 ```
 
-### Release APK не подписывается
+### Release APK is not signed
 
-В `build.sh` реализован fallback: если keystore не найден или `KEYSTORE_PASSWORD` не задан, APK подписывается debug-ключом Android SDK.  
-Для production-подписи всегда указывайте `KEYSTORE_PASSWORD`.
+`build.sh` has a fallback: if the keystore is not found or `KEYSTORE_PASSWORD` is not set, the APK is signed with the Android SDK debug keystore.  
+For production signing, always provide `KEYSTORE_PASSWORD`.
 
 ---
 
-## Структура CI/CD файлов
+## CI/CD file structure
 
 ```
 .github/
-├── dependabot.yml             # Автоматическое обновление зависимостей
+├── dependabot.yml             # Automatic dependency updates
 └── workflows/
-    └── build-apk.yml           # Основной CI/CD пайплайн
+    └── build-apk.yml           # Main CI/CD pipeline
 
-build.sh                        # Локальный скрипт сборки
-SETUP.md                        # Эта инструкция
-.gitignore                      # Игнорирование секретов и артефактов
+build.sh                        # Local build script
+SETUP.md                        # This guide
+.gitignore                      # Secrets and artifact exclusions
 ```
 
 ---
 
-## Ссылки
+## Links
 
-- [WebhookNoteSender на GitHub](https://github.com/kas-cor/webhooknotesender)
+- [WebhookNoteSender on GitHub](https://github.com/kas-cor/webhooknotesender)
 - [Workflow: Build APK](.github/workflows/build-apk.yml)
 - [README.md](README.md) — English documentation
-- [README_ru.md](README_ru.md) — Русская документация
+- [README_ru.md](README_ru.md) — Russian documentation
 - [AGENTS.md](AGENTS.md) — AI agent documentation
