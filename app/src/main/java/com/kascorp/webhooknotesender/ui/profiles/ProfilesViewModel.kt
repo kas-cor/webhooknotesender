@@ -165,8 +165,9 @@ class ProfilesViewModel @Inject constructor(
                         bearerToken = state.bearerToken.trim().ifEmpty { null }
                     )
                     profileRepository.update(profile)
-                    // Update dynamic shortcuts
+                    // Update shortcuts: remove old pinned, refresh dynamic
                     shortcutHelper.removeShortcut(profile.id)
+                    shortcutHelper.updateDynamicShortcuts(profiles.value)
                 } else {
                     val profile = ProfileEntity(
                         name = state.name.trim(),
@@ -176,6 +177,8 @@ class ProfilesViewModel @Inject constructor(
                         bearerToken = state.bearerToken.trim().ifEmpty { null }
                     )
                     profileRepository.insert(profile)
+                    // Refresh dynamic shortcuts with current profile list
+                    shortcutHelper.updateDynamicShortcuts(profiles.value)
                 }
                 onSuccess()
             } catch (e: Exception) {
@@ -191,6 +194,8 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             shortcutHelper.removeShortcut(profile.id)
             profileRepository.delete(profile)
+            // Refresh dynamic shortcuts
+            shortcutHelper.updateDynamicShortcuts(profiles.value)
         }
     }
 

@@ -21,13 +21,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "../webhooknotesender-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("KEY_ALIAS") ?: "webhooknotesender"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD") ?: ""
-            isSigningEnabled = storeFile.exists() && storePassword.isNotEmpty()
+    val keystorePath = System.getenv("KEYSTORE_PATH") ?: "../webhooknotesender-release.jks"
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+    val keystoreFile = file(keystorePath)
+
+    if (keystoreFile.exists() && keystorePassword.isNotEmpty()) {
+        signingConfigs {
+            create("release") {
+                storeFile = keystoreFile
+                storePassword = keystorePassword
+                keyAlias = System.getenv("KEY_ALIAS") ?: "webhooknotesender"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: keystorePassword
+            }
         }
     }
 
@@ -39,7 +44,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (keystoreFile.exists() && keystorePassword.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false

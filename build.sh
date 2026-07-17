@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ===== Настройки =====
+# ===== Settings =====
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
 APK_PATH_RELEASE="$PROJECT_DIR/app/build/outputs/apk/release/app-release-unsigned.apk"
@@ -9,7 +9,7 @@ GRADLE="$PROJECT_DIR/gradlew"
 ADB="adb"
 PACKAGE="com.kascorp.webhooknotesender"
 
-# ===== Цвета =====
+# ===== Colors =====
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,53 +21,53 @@ ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
-# ===== Проверка зависимостей =====
+# ===== Dependency checks =====
 check_deps() {
-    info "Проверка зависимостей..."
+    info "Checking dependencies..."
 
     if [ ! -f "$GRADLE" ]; then
-        error "gradlew не найден: $GRADLE"
+        error "gradlew not found: $GRADLE"
         exit 1
     fi
 
     if ! command -v "$ADB" &>/dev/null; then
-        error "adb не найден. Установите Android SDK platform-tools."
+        error "adb not found. Install Android SDK platform-tools."
         exit 1
     fi
 
-    ok "Все базовые зависимости на месте."
+    ok "All basic dependencies are in place."
 }
 
 check_curl() {
     if ! command -v curl &>/dev/null; then
-        error "curl не найден. Установите curl."
+        error "curl not found. Install curl."
         exit 1
     fi
 }
 
-# ===== Сборка debug =====
+# ===== Build debug =====
 build() {
-    info "Сборка debug APK..."
+    info "Building debug APK..."
     cd "$PROJECT_DIR"
     chmod +x "$GRADLE"
     "$GRADLE" assembleDebug --no-daemon 2>&1
-    ok "Сборка завершена."
+    ok "Build complete."
 }
 
-# ===== Сборка release =====
+# ===== Build release =====
 build_release() {
-    info "Сборка release APK..."
+    info "Building release APK..."
 
     local keystore="$PROJECT_DIR/webhooknotesender-release.jks"
     local sign_with_debug=false
 
     if [ -f "$keystore" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
-        info "Подпись продакшн-ключом: $keystore"
+        info "Signing with production keystore: $keystore"
     elif [ -f "$keystore" ] && [ -z "${KEYSTORE_PASSWORD:-}" ]; then
-        warn "KEYSTORE_PASSWORD не задан. Буду подписывать debug-ключом Android SDK."
+        warn "KEYSTORE_PASSWORD not set. Will sign with Android SDK debug keystore."
         sign_with_debug=true
     else
-        warn "Keystore не найден. Буду подписывать debug-ключом Android SDK."
+        warn "Keystore not found. Will sign with Android SDK debug keystore."
         sign_with_debug=true
     fi
 
@@ -84,14 +84,14 @@ build_release() {
 
         local debug_ks="$HOME/.android/debug.keystore"
         if [ ! -f "$debug_ks" ]; then
-            error "Debug keystore не найден: $debug_ks"
+            error "Debug keystore not found: $debug_ks"
             return 1
         fi
 
         local build_tools
         build_tools=$(ls -d "$HOME/Android/Sdk/build-tools/"* 2>/dev/null | sort -V | tail -1)
         if [ -z "$build_tools" ]; then
-            error "build-tools не найдены в Android SDK."
+            error "build-tools not found in Android SDK."
             return 1
         fi
 
@@ -106,88 +106,88 @@ build_release() {
             --key-pass pass:android \
             "$aligned" 2>&1
 
-        ok "Release APK подписан debug-ключом: $aligned"
+        ok "Release APK signed with debug keystore: $aligned"
     else
         "$GRADLE" assembleRelease --no-daemon 2>&1
-        ok "Release APK подписан продакшн-ключом: $APK_PATH_RELEASE"
+        ok "Release APK signed with production keystore: $APK_PATH_RELEASE"
     fi
 }
 
-# ===== Проверка APK =====
+# ===== Check APK =====
 check_apk() {
     local apk="${1:-$APK_PATH}"
     if [ ! -f "$apk" ]; then
-        error "APK не найден: $apk"
+        error "APK not found: $apk"
         exit 1
     fi
     local size
     size=$(du -h "$apk" | cut -f1)
-    ok "APK найден: $apk ($size)"
+    ok "APK found: $apk ($size)"
 }
 
-# ===== Проверка устройств =====
+# ===== Check devices =====
 check_device() {
-    info "Поиск подключённых устройств..."
+    info "Looking for connected devices..."
     local devices
     devices=$("$ADB" devices 2>/dev/null | grep -v "^List" | grep -v "^$" || true)
 
     if [ -z "$devices" ]; then
-        error "Нет подключённых устройств."
+        error "No connected devices found."
         echo ""
-        echo "  Подключите устройство по USB и включите отладку по USB,"
-        echo "  или запустите эмулятор."
+        echo "  Connect a device via USB and enable USB debugging,"
+        echo "  or start an emulator."
         echo ""
-        echo "  Для подключения по Wi-Fi:"
+        echo "  To connect via Wi-Fi:"
         echo "    adb tcpip 5555"
-        echo "    adb connect <IP_устройства>:5555"
+        echo "    adb connect <DEVICE_IP>:5555"
         exit 1
     fi
 
     local count
     count=$(echo "$devices" | wc -l)
-    ok "Найдено устройств: $count"
+    ok "Devices found: $count"
     echo "$devices" | while read -r line; do
         echo "  → $line"
     done
 }
 
-# ===== Установка APK =====
+# ===== Install APK =====
 install_apk() {
     local apk="${1:-$APK_PATH}"
-    info "Установка APK на устройство..."
+    info "Installing APK on device..."
     "$ADB" install -r "$apk" 2>&1
-    ok "APK установлен."
+    ok "APK installed."
 }
 
-# ===== Запуск приложения =====
+# ===== Launch app =====
 launch_app() {
-    info "Запуск приложения..."
+    info "Launching app..."
     "$ADB" shell am start -n "$PACKAGE/.MainActivity" 2>&1
-    ok "Приложение запущено."
+    ok "App launched."
 }
 
-# ===== Очистка базы данных приложения =====
+# ===== Clear app data =====
 clear_data() {
-    info "Очистка данных приложения..."
+    info "Clearing app data..."
     "$ADB" shell pm clear "$PACKAGE" 2>&1
-    ok "Данные приложения очищены."
+    ok "App data cleared."
 }
 
-# ===== Просмотр логов (logcat) =====
+# ===== Show logs (logcat) =====
 show_logs() {
-    info "Логи WebhookNoteSender (logcat). Для выхода: Ctrl+C"
+    info "WebhookNoteSender logs (logcat). Press Ctrl+C to exit."
     echo ""
     "$ADB" logcat -v time \
         | grep -E "(ShortcutReceiverActivity|AudioRecorderService|QueueWorker|WebhookApi|MainActivity|AndroidRuntime|$PACKAGE|ProfileDao|QueueDao)" \
         --line-buffered
 }
 
-# ===== Отправка тестового POST на webhook =====
+# ===== Send test POST to webhook =====
 send_test() {
-    info "Отправка тестового POST на webhook..."
+    info "Sending test POST to webhook..."
 
     if [ $# -lt 1 ]; then
-        error "Укажите URL webhook'а: $0 --test https://example.com/webhook [bearer_token]"
+        error "Specify webhook URL: $0 --test https://example.com/webhook [bearer_token]"
         exit 1
     fi
 
@@ -198,13 +198,13 @@ send_test() {
     local ts_iso
     ts_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Формируем payload по спецификации WebhookNoteSender
+    # Build payload per WebhookNoteSender spec
     local payload
     payload=$(printf '{
   "messages": [
     {
       "name": "test_profile",
-      "prompt": "Тестовый запрос из build.sh",
+      "prompt": "Test request from build.sh",
       "datetime": "%s",
       "type": "image",
       "data": ""
@@ -229,22 +229,13 @@ send_test() {
     fi
 
     if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ] || [ "$http_code" -eq 204 ]; then
-        ok "Тестовый POST отправлен. HTTP $http_code"
+        ok "Test POST sent. HTTP $http_code"
     else
-        warn "Тестовый POST ответил HTTP $http_code"
+        warn "Test POST responded with HTTP $http_code"
     fi
 }
 
-# ===== Создание и установка ярлыков через ADB =====
-install_shortcuts() {
-    info "Создание ярлыков через ADB (требуется root или отладка)..."
-    warn "Ярлыки создаются в приложении. Эта команда только для справки."
-    echo ""
-    echo "  Для создания ярлыка используйте UI приложения:"
-    echo "    Профили → долгое нажатие → Создать ярлык"
-}
-
-# ===== Полный цикл: сборка → установка → запуск =====
+# ===== Full cycle: build → install → launch =====
 run_full() {
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
@@ -263,33 +254,33 @@ run_full() {
     echo ""
     launch_app
     echo ""
-    ok "Готово! 🎉"
+    ok "Done! 🎉"
 }
 
-# ===== Справка =====
+# ===== Usage =====
 usage() {
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║  WebhookNoteSender — Build Tool          ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
     echo ""
-    echo "Использование: $0 [флаги]"
+    echo "Usage: $0 [flags]"
     echo ""
-    echo "Флаги:"
-    echo "  --run               Собрать debug APK, установить и запустить"
-    echo "  --release           Собрать release APK (с подписью)"
-    echo "  --install [apk]     Установить APK (по умолч. debug)"
-    echo "  --launch            Запустить приложение на устройстве"
-    echo "  --clear             Очистить данные приложения"
-    echo "  --logs              Показать logcat, отфильтрованный по приложению"
-    echo "  --test <url> [токен] Отправить тестовый POST на webhook"
-    echo "  --help, -h          Показать эту справку"
+    echo "Flags:"
+    echo "  --run               Build debug APK, install, and launch"
+    echo "  --release           Build release APK (signed)"
+    echo "  --install [apk]     Install APK on device (default: debug)"
+    echo "  --launch            Launch app on device"
+    echo "  --clear             Clear app data on device"
+    echo "  --logs              Show logcat filtered by app package"
+    echo "  --test <url> [token] Send test POST to webhook"
+    echo "  --help, -h          Show this help"
     echo ""
-    echo "Без флагов — только сборка debug APK."
+    echo "Without flags — build debug APK only."
     echo ""
 }
 
-# ===== Главный процесс =====
+# ===== Main =====
 main() {
     local do_run=false
     local do_release=false
@@ -342,7 +333,7 @@ main() {
                     do_test="$1"
                     shift
                 else
-                    error "--test требует URL"
+                    error "--test requires a URL"
                     exit 1
                 fi
                 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
@@ -355,7 +346,7 @@ main() {
                 exit 0
                 ;;
             *)
-                error "Неизвестный флаг: $1"
+                error "Unknown flag: $1"
                 usage
                 exit 1
                 ;;
@@ -378,7 +369,7 @@ main() {
         echo ""
         build_release
         echo ""
-        ok "Готово! 🎉"
+        ok "Done! 🎉"
     fi
 
     # --install
@@ -394,7 +385,7 @@ main() {
         echo ""
         install_apk "$do_install"
         echo ""
-        ok "Готово! 🎉"
+        ok "Done! 🎉"
     fi
 
     # --launch

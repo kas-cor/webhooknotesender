@@ -56,19 +56,19 @@ WebhookNoteSenderApp (Hilt Application)
 ### Clean Architecture layers
 
 ```
-┌─────────────────────────────────────────────┐
-│  UI Layer (Compose + ViewModels)            │
-│  ProfilesScreen · QueueScreen · Settings    │
-├─────────────────────────────────────────────┤
+┌──────────────────────────────────────────────┐
+│  UI Layer (Compose + ViewModels)             │
+│  ProfilesScreen · QueueScreen · Settings     │
+├──────────────────────────────────────────────┤
 │  Domain Layer                                │
 │  MediaType · QueueStatus · ThemeMode         │
-├─────────────────────────────────────────────┤
+├──────────────────────────────────────────────┤
 │  Data Layer                                  │
 │  Room DB · Repositories · WebhookApi (OkHttp)│
-├─────────────────────────────────────────────┤
+├──────────────────────────────────────────────┤
 │  Infrastructure                              │
 │  WorkManager · Hilt DI · DataStore · CameraX │
-└─────────────────────────────────────────────┘
+└──────────────────────────────────────────────┘
 ```
 
 ### Project structure

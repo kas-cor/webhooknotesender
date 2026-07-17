@@ -47,19 +47,19 @@ WebhookNoteSenderApp (Hilt Application)
 ### Слои чистой архитектуры
 
 ```
-┌─────────────────────────────────────────────┐
-│  UI слой (Compose + ViewModels)             │
-│  ProfilesScreen · QueueScreen · Settings    │
-├─────────────────────────────────────────────┤
-│  Domain слой                                │
-│  MediaType · QueueStatus · ThemeMode        │
-├─────────────────────────────────────────────┤
-│  Data слой                                  │
-│  Room БД · Репозитории · WebhookApi (OkHttp)│
-├─────────────────────────────────────────────┤
-│  Инфраструктура                             │
-│  WorkManager · Hilt DI · DataStore · CameraX│
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  UI слой (Compose + ViewModels)              │
+│  ProfilesScreen · QueueScreen · Settings     │
+├──────────────────────────────────────────────┤
+│  Domain слой                                 │
+│  MediaType · QueueStatus · ThemeMode         │
+├──────────────────────────────────────────────┤
+│  Data слой                                   │
+│  Room БД · Репозитории · WebhookApi (OkHttp) │
+├──────────────────────────────────────────────┤
+│  Инфраструктура                              │
+│  WorkManager · Hilt DI · DataStore · CameraX │
+└──────────────────────────────────────────────┘
 ```
 
 ### Структура проекта

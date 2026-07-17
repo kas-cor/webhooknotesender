@@ -26,6 +26,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -71,17 +72,17 @@ class AudioRecorderService : Service() {
                 bearerToken = intent.getStringExtra("bearer_token")
                 profileType = intent.getStringExtra("profile_type") ?: "audio"
 
-                // If profile details not provided (shortcut flow), load from database
+                // If profile details not provided (shortcut flow), load from database synchronously
                 if (profileName.isEmpty() && profileId > 0) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val profile = database.profileDao().getProfileById(profileId)
-                        if (profile != null) {
-                            profileName = profile.name
-                            profilePrompt = profile.prompt
-                            profileUrl = profile.url
-                            bearerToken = profile.bearerToken
-                            profileType = profile.type
-                        }
+                    val profile = runBlocking(Dispatchers.IO) {
+                        database.profileDao().getProfileById(profileId)
+                    }
+                    if (profile != null) {
+                        profileName = profile.name
+                        profilePrompt = profile.prompt
+                        profileUrl = profile.url
+                        bearerToken = profile.bearerToken
+                        profileType = profile.type
                     }
                 }
 
