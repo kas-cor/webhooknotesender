@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Webhook Note Sender</string>
+
+    <!-- Navigation -->
+    <string name="nav_profiles">Профили</string>
+    <string name="nav_queue">Очередь</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Profiles -->
+    <string name="create_profile">Создать профиль</string>
+    <string name="edit_profile">Редактировать профиль</string>
+    <string name="delete_profile">Удалить профиль</string>
+    <string name="profile_name">Название</string>
+    <string name="profile_type">Тип</string>
+    <string name="profile_prompt">Промпт</string>
+    <string name="webhook_url">URL вебхука</string>
+    <string name="bearer_token">Bearer токен</string>
+    <string name="save">Сохранить</string>
+    <string name="update">Обновить</string>
+    <string name="cancel">Отмена</string>
+    <string name="capture">Снять</string>
+    <string name="record">Записать</string>
+    <string name="image_type">Изображение</string>
+    <string name="audio_type">Аудио</string>
+    <string name="video_type">Видео</string>
+
+    <!-- Profile validation -->
+    <string name="name_required">Название обязательно</string>
+    <string name="name_min_length">Название должно быть минимум 2 символа</string>
+    <string name="name_already_exists">Такое название уже существует</string>
+    <string name="prompt_required">Промпт обязателен</string>
+    <string name="url_required">URL обязателен</string>
+    <string name="url_invalid">URL должен начинаться с http:// или https://</string>
+    <string name="url_http_warning">Использование HTTP небезопасно. Рекомендуется HTTPS.</string>
+
+    <!-- Queue -->
+    <string name="queue_empty">Очередь пуста</string>
+    <string name="queue_empty_description">Захваченные медиа будут отображаться здесь и отправляться автоматически</string>
+    <string name="pending">Ожидание</string>
+    <string name="sending">Отправка…</string>
+    <string name="sent">Отправлено</string>
+    <string name="failed">Ошибка</string>
+    <string name="retry">Повторить</string>
+    <string name="retry_all">Повторить все</string>
+    <string name="delete">Удалить</string>
+    <string name="attempts" translatable="false">%d попыток</string>
+
+    <!-- Status -->
+    <string name="status_pending">⏳ Ожидание</string>
+    <string name="status_sending">🔄 Отправка</string>
+    <string name="status_sent">✅ Отправлено</string>
+    <string name="status_failed">❌ Ошибка</string>
+
+    <!-- Settings -->
+    <string name="appearance">Внешний вид</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_system">Системная</string>
+    <string name="language">Язык</string>
+    <string name="language_english">English</string>
+    <string name="language_russian">Русский</string>
+    <string name="about">О приложении</string>
+    <string name="version" translatable="false">Версия 1.0.0</string>
+    <string name="app_description">Отправляйте медиа на вебхуки ИИ-агентов</string>
+
+    <!-- Audio Recording -->
+    <string name="start_recording">Начать запись</string>
+    <string name="stop_recording">Остановить запись</string>
+    <string name="recording">Запись…</string>
+    <string name="audio_recording_started">Запись начата</string>
+    <string name="audio_recording_stopped">Запись остановлена</string>
+    <string name="tap_to_record">Нажмите для начала записи</string>
+    <string name="stop">Стоп</string>
+
+    <!-- Shortcuts -->
+    <string name="create_shortcut">Создать ярлык</string>
+    <string name="remove_shortcut">Удалить ярлык</string>
+    <string name="shortcut_created">Ярлык создан</string>
+    <string name="shortcut_removed">Ярлык удалён</string>
+    <string name="shortcut_label">%1$s · %2$s</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Статус очереди</string>
+    <string name="notification_channel_description">Уведомления о обработке очереди</string>
+    <string name="notification_sent_title">Сообщение отправлено</string>
+    <string name="notification_sent_text">%1$s успешно отправлено</string>
+    <string name="notification_failed_title">Ошибка отправки</string>
+    <string name="notification_failed_text">Не удалось отправить %1$s после %2$d попыток</string>
+
+    <!-- Audio Recording Notification -->
+    <string name="audio_recording_channel_name">Запись аудио</string>
+    <string name="audio_recording_channel_description">Уведомление о активной записи аудио</string>
+    <string name="notification_recording_title">Запись аудио</string>
+    <string name="notification_recording_text">Микрофон активен</string>
+
+    <!-- Messages -->
+    <string name="added_to_queue">Добавлено в очередь</string>
+    <string name="error_reading_file">Ошибка чтения файла</string>
+    <string name="error_recording">Ошибка записи аудио</string>
+    <string name="error_processing">Ошибка обработки медиа</string>
+    <string name="profile_not_found">Профиль не найден</string>
+    <string name="capture_cancelled">Захват отменён</string>
+    <string name="camera_permission_denied">Нет разрешения на камеру</string>
+    <string name="microphone_permission_denied">Нет разрешения на микрофон</string>
+    <string name="test_send">Тестовая отправка</string>
+    <string name="test_send_success">Тест успешен: соединение работает</string>
+    <string name="test_send_failed">Тест не удался: %1$s</string>
+    <string name="no_camera">Нет доступного приложения камеры</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_add_profile" translatable="false">Создать профиль</string>
+    <string name="cd_capture" translatable="false">Захватить медиа</string>
+    <string name="cd_back" translatable="false">Назад</string>
+    <string name="cd_more_options" translatable="false">Больше опций</string>
+    <string name="cd_edit" translatable="false">Редактировать</string>
+    <string name="cd_delete" translatable="false">Удалить</string>
+    <string name="cd_retry" translatable="false">Повторить</string>
+    <string name="cd_shortcut" translatable="false">Ярлык</string>
+</resources>
