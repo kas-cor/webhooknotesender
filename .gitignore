@@ -1,0 +1,44 @@
+# Android
+*.iml
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.swp
+*.swo
+*.swn
+
+# AI agents
+.qwen/
+QWEN.md
+AGENTS.md
+
+# Secrets
+*.jks
+*.keystore
+*.base64
+.keystore_password.txt
+KEYSTORE_PASSWORD.txt
+google-services.json
+
+# Build artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+output.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logcat.txt
+
+# Gradle
+!gradle/wrapper/gradle-wrapper.jar

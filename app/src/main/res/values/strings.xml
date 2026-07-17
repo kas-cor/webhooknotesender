@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Webhook Note Sender</string>
+
+    <!-- Navigation -->
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_queue">Queue</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Profiles -->
+    <string name="create_profile">Create Profile</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="delete_profile">Delete Profile</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_type">Type</string>
+    <string name="profile_prompt">Prompt</string>
+    <string name="webhook_url">Webhook URL</string>
+    <string name="bearer_token">Bearer Token</string>
+    <string name="save">Save</string>
+    <string name="update">Update</string>
+    <string name="cancel">Cancel</string>
+    <string name="capture">Capture</string>
+    <string name="record">Record</string>
+    <string name="image_type">Image</string>
+    <string name="audio_type">Audio</string>
+    <string name="video_type">Video</string>
+
+    <!-- Profile validation -->
+    <string name="name_required">Name is required</string>
+    <string name="name_min_length">Name must be at least 2 characters</string>
+    <string name="name_already_exists">Name already exists</string>
+    <string name="prompt_required">Prompt is required</string>
+    <string name="url_required">URL is required</string>
+    <string name="url_invalid">URL must start with http:// or https://</string>
+    <string name="url_http_warning">Using HTTP is not secure. Consider using HTTPS.</string>
+
+    <!-- Queue -->
+    <string name="queue_empty">Queue is empty</string>
+    <string name="queue_empty_description">Captured media will appear here and be sent automatically</string>
+    <string name="pending">Pending</string>
+    <string name="sending">Sending…</string>
+    <string name="sent">Sent</string>
+    <string name="failed">Failed</string>
+    <string name="retry">Retry</string>
+    <string name="retry_all">Retry All</string>
+    <string name="delete">Delete</string>
+    <string name="attempts" translatable="false">%d attempts</string>
+
+    <!-- Status -->
+    <string name="status_pending">⏳ Pending</string>
+    <string name="status_sending">🔄 Sending</string>
+    <string name="status_sent">✅ Sent</string>
+    <string name="status_failed">❌ Failed</string>
+
+    <!-- Settings -->
+    <string name="appearance">Appearance</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="language">Language</string>
+    <string name="language_english">English</string>
+    <string name="language_russian">Русский</string>
+    <string name="about">About</string>
+    <string name="version" translatable="false">Version 1.0.0</string>
+    <string name="app_description">Send media to AI agent webhooks with ease</string>
+
+    <!-- Audio Recording -->
+    <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+    <string name="recording">Recording…</string>
+    <string name="audio_recording_started">Recording started</string>
+    <string name="audio_recording_stopped">Recording stopped</string>
+    <string name="tap_to_record">Tap to start recording</string>
+    <string name="stop">Stop</string>
+
+    <!-- Shortcuts -->
+    <string name="create_shortcut">Create Shortcut</string>
+    <string name="remove_shortcut">Remove Shortcut</string>
+    <string name="shortcut_created">Shortcut created</string>
+    <string name="shortcut_removed">Shortcut removed</string>
+    <string name="shortcut_label">%1$s · %2$s</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Queue Status</string>
+    <string name="notification_channel_description">Notifications about queue processing</string>
+    <string name="notification_sent_title">Message Sent</string>
+    <string name="notification_sent_text">Your %1$s has been sent successfully</string>
+    <string name="notification_failed_title">Send Failed</string>
+    <string name="notification_failed_text">Failed to send %1$s after %2$d attempts</string>
+
+    <!-- Audio Recording Notification -->
+    <string name="audio_recording_channel_name">Audio Recording</string>
+    <string name="audio_recording_channel_description">Notification for active audio recording</string>
+    <string name="notification_recording_title">Recording Audio</string>
+    <string name="notification_recording_text">Microphone is active</string>
+
+    <!-- Messages -->
+    <string name="added_to_queue">Added to queue</string>
+    <string name="error_reading_file">Error reading media file</string>
+    <string name="error_recording">Error recording audio</string>
+    <string name="error_processing">Error processing media</string>
+    <string name="profile_not_found">Profile not found</string>
+    <string name="capture_cancelled">Capture cancelled</string>
+    <string name="camera_permission_denied">Camera permission denied</string>
+    <string name="microphone_permission_denied">Microphone permission denied</string>
+    <string name="test_send">Test Send</string>
+    <string name="test_send_success">Test successful: connection works</string>
+    <string name="test_send_failed">Test failed: %1$s</string>
+    <string name="no_camera">No camera app available</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_add_profile" translatable="false">Create profile</string>
+    <string name="cd_capture" translatable="false">Capture media</string>
+    <string name="cd_back" translatable="false">Back</string>
+    <string name="cd_more_options" translatable="false">More options</string>
+    <string name="cd_edit" translatable="false">Edit</string>
+    <string name="cd_delete" translatable="false">Delete</string>
+    <string name="cd_retry" translatable="false">Retry</string>
+    <string name="cd_shortcut" translatable="false">Shortcut</string>
+</resources>
