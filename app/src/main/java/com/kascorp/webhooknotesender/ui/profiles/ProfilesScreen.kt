@@ -11,7 +11,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -378,15 +377,11 @@ fun ProfileCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(cardScale)
-            .clickable(
+            .combinedClickable(
+                onClick = onCapture,
+                onLongClick = { showMenu = true },
                 interactionSource = interactionSource,
                 indication = null
-            ) {
-                onCapture()
-            }
-            .combinedClickable(
-                onLongClick = { showMenu = true },
-                onClick = {}
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(

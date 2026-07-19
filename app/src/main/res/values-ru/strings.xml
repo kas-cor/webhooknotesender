@@ -53,10 +53,10 @@
     <string name="attempts" translatable="false">%d попыток</string>
 
     <!-- Status -->
-    <string name="status_pending">⏳ Ожидание</string>
-    <string name="status_sending">🔄 Отправка</string>
-    <string name="status_sent">✅ Отправлено</string>
-    <string name="status_failed">❌ Ошибка</string>
+    <string name="status_pending">Ожидание</string>
+    <string name="status_sending">Отправка</string>
+    <string name="status_sent">Отправлено</string>
+    <string name="status_failed">Ошибка</string>
 
     <!-- Settings -->
     <string name="appearance">Внешний вид</string>

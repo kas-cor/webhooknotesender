@@ -53,10 +53,10 @@
     <string name="attempts" translatable="false">%d attempts</string>
 
     <!-- Status -->
-    <string name="status_pending">⏳ Pending</string>
-    <string name="status_sending">🔄 Sending</string>
-    <string name="status_sent">✅ Sent</string>
-    <string name="status_failed">❌ Failed</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_sending">Sending</string>
+    <string name="status_sent">Sent</string>
+    <string name="status_failed">Failed</string>
 
     <!-- Settings -->
     <string name="appearance">Appearance</string>
