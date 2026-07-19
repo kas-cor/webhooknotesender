@@ -57,11 +57,11 @@ After setting up secrets, CI/CD will work automatically:
 
 1. **Push to `main` or `develop`** — triggers:
    - `lint` — code linting (non-blocking)
-   - `test` — run unit tests (19 tests)
+   - `test` — run unit tests (117+ tests)
    - `locales` — validate string key parity between EN and RU
    - `build-debug` — build debug APK
 
-2. **Push tag `v*`** (e.g., `v1.0`) — additionally:
+2. **Push tag `v*`** (e.g., `v0.3`) — additionally:
    - `build-release` — signed release build
    - `release` — create GitHub Release with APK
 
@@ -72,10 +72,10 @@ After setting up secrets, CI/CD will work automatically:
 git status
 
 # 2. Create a new version tag
-git tag v1.0
+git tag v0.3
 
 # 3. Push the tag
-git push origin v1.0
+git push origin v0.3
 
 # 4. CI/CD will automatically:
 #    - Increment versionCode
@@ -93,14 +93,18 @@ Before pushing, it's recommended to run the same checks as CI:
 # Unit tests
 ./gradlew testDebugUnitTest
 
+# Hardcoded strings check
+./gradlew checkHardcodedStrings
+
 # Linter
 ./gradlew lintDebug
 
 # Build debug APK
 ./build.sh
 
-# Build release APK (signed)
+# Build signed release APK
 export KEYSTORE_PASSWORD=your-password
+export KEYSTORE_PATH="$(pwd)/webhooknotesender-release.jks"
 ./build.sh --release
 ```
 
