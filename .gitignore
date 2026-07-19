@@ -14,11 +14,6 @@ local.properties
 *.swo
 *.swn
 
-# AI agents
-.qwen/
-QWEN.md
-AGENTS.md
-
 # Secrets
 *.jks
 *.keystore
