@@ -42,7 +42,7 @@ object LocaleHelper {
      * Save the language preference (called from ViewModel after DataStore save).
      */
     fun saveLanguage(context: Context, language: String) {
-        getPrefs(context).edit().putString(KEY_LANGUAGE, language).apply()
+        getPrefs(context).edit().putString(KEY_LANGUAGE, language).commit()
     }
 
     /**

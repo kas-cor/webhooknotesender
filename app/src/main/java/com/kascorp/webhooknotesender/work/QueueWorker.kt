@@ -52,6 +52,10 @@ class QueueWorker(
     override suspend fun doWork(): Result {
         queueRepository.cleanupOrphanedPayloads()
 
+        // Auto-delete sent items older than 24 hours
+        val dayAgo = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+        queueRepository.deleteSentItemsOlderThan(dayAgo)
+
         val pendingItems = queueRepository.getPendingItems()
 
         if (pendingItems.isEmpty()) {
@@ -98,8 +102,11 @@ class QueueWorker(
 
         return sendResult.fold(
             onSuccess = {
-                // Success — delete from DB (also cleans up the payload file internally)
-                queueRepository.deleteById(item.id)
+                // Delete payload file to free space, keep DB record as SENT
+                if (item.payloadFilePath != null) {
+                    PayloadFileHelper.deletePayload(applicationContext, item.payloadFilePath)
+                }
+                queueRepository.markAsSent(item.id)
                 true // success, no retry needed
             },
             onFailure = { error ->

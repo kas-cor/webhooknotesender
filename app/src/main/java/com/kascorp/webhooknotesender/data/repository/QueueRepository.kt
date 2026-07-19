@@ -62,6 +62,15 @@ class QueueRepository @Inject constructor(
         queueDao.deleteSentItems()
     }
 
+    suspend fun deleteSentItemsOlderThan(beforeTimestamp: Long) {
+        queueDao.getItemsByStatus(QueueStatus.SENT.name).forEach { item ->
+            if (item.createdAt < beforeTimestamp && item.payloadFilePath != null) {
+                PayloadFileHelper.deletePayload(context, item.payloadFilePath)
+            }
+        }
+        queueDao.deleteSentItemsOlderThan(beforeTimestamp)
+    }
+
     suspend fun cleanupOrphanedPayloads() {
         val activeFiles = queueDao.getAllPayloadFilePaths()
             .mapNotNull { it }

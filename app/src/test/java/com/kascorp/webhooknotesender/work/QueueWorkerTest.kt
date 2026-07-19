@@ -97,6 +97,7 @@ class QueueWorkerTest {
         workerParams = mockk(relaxed = true)
         queueRepository = mockk()
         coEvery { queueRepository.cleanupOrphanedPayloads() } returns Unit
+        coEvery { queueRepository.deleteSentItemsOlderThan(any()) } returns Unit
         webhookApi = mockk()
         mockkObject(PayloadFileHelper)
     }
@@ -143,7 +144,7 @@ class QueueWorkerTest {
         coEvery { queueRepository.updateStatus(any(), any(), any(), any()) } returns Unit
         coEvery { webhookApi.send(testItem.url, testItem.jsonPayload, testItem.bearerToken) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(1L) } returns Unit
+        coEvery { queueRepository.markAsSent(1L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -160,7 +161,8 @@ class QueueWorkerTest {
         coVerify(exactly = 1) {
             webhookApi.send(testItem.url, testItem.jsonPayload, testItem.bearerToken)
         }
-        coVerify(exactly = 1) { queueRepository.deleteById(1L) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(1L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 
     @Test
@@ -268,7 +270,7 @@ class QueueWorkerTest {
         // First item succeeds
         coEvery { webhookApi.send(testItem.url, testItem.jsonPayload, testItem.bearerToken) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(1L) } returns Unit
+        coEvery { queueRepository.markAsSent(1L) } returns Unit
 
         // Second item fails with server error (should retry)
         coEvery {
@@ -293,7 +295,7 @@ class QueueWorkerTest {
         assert(result == ListenableWorker.Result.retry()) {
             "Expected Result.retry() but got $result"
         }
-        coVerify(exactly = 1) { queueRepository.deleteById(1L) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(1L) }
         coVerify(exactly = 1) {
             queueRepository.updateStatus(
                 2L,
@@ -365,7 +367,7 @@ class QueueWorkerTest {
         coEvery {
             webhookApi.send(testItemNoAuth.url, testItemNoAuth.jsonPayload, null)
         } returns kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(2L) } returns Unit
+        coEvery { queueRepository.markAsSent(2L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -378,7 +380,8 @@ class QueueWorkerTest {
         coVerify(exactly = 1) {
             webhookApi.send(testItemNoAuth.url, testItemNoAuth.jsonPayload, null)
         }
-        coVerify(exactly = 1) { queueRepository.deleteById(2L) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(2L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 
     // ===================== PayloadFileHelper integration =====================
@@ -391,7 +394,7 @@ class QueueWorkerTest {
         coEvery { queueRepository.updateStatus(any(), any(), any(), any()) } returns Unit
         coEvery { webhookApi.send(testItemWithFile.url, testPayload, testItemWithFile.bearerToken) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(3L) } returns Unit
+        coEvery { queueRepository.markAsSent(3L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -406,8 +409,10 @@ class QueueWorkerTest {
         coVerify(exactly = 1) {
             webhookApi.send(testItemWithFile.url, testPayload, testItemWithFile.bearerToken)
         }
-        // File is cleaned up by deleteById internally — just verify deletion
-        coVerify(exactly = 1) { queueRepository.deleteById(3L) }
+        // File is deleted on success to free space, record kept as SENT
+        verify(exactly = 1) { PayloadFileHelper.deletePayload(context, "payload_uuid.json") }
+        coVerify(exactly = 1) { queueRepository.markAsSent(3L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 
     @Test
@@ -419,7 +424,7 @@ class QueueWorkerTest {
         coEvery {
             webhookApi.send(testItemWithFileAndFallback.url, testPayload, null)
         } returns kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(4L) } returns Unit
+        coEvery { queueRepository.markAsSent(4L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -433,8 +438,10 @@ class QueueWorkerTest {
         coVerify(exactly = 1) {
             webhookApi.send(testItemWithFileAndFallback.url, testPayload, null)
         }
-        // Item is deleted on success (file cleanup handled internally by deleteById)
-        coVerify(exactly = 1) { queueRepository.deleteById(4L) }
+        // File is deleted on success (even if file doesn't exist, deletePayload is called)
+        verify(exactly = 1) { PayloadFileHelper.deletePayload(context, "missing_payload.json") }
+        coVerify(exactly = 1) { queueRepository.markAsSent(4L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 
     @Test
@@ -505,7 +512,7 @@ class QueueWorkerTest {
         coEvery { queueRepository.updateStatus(any(), any(), any(), any()) } returns Unit
         coEvery { webhookApi.send(testItemWithFileAndFallback.url, testPayload, null) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(4L) } returns Unit
+        coEvery { queueRepository.markAsSent(4L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -516,10 +523,12 @@ class QueueWorkerTest {
             "Expected Result.success() but got $result"
         }
         verify(exactly = 1) { PayloadFileHelper.loadPayload(context, "missing_payload.json") }
+        verify(exactly = 1) { PayloadFileHelper.deletePayload(context, "missing_payload.json") }
         coVerify(exactly = 1) {
             webhookApi.send(testItemWithFileAndFallback.url, testPayload, null)
         }
-        coVerify(exactly = 1) { queueRepository.deleteById(4L) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(4L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 
     @Test
@@ -531,13 +540,13 @@ class QueueWorkerTest {
         // Item 1 (direct jsonPayload) succeeds
         coEvery { webhookApi.send(testItem.url, testItem.jsonPayload, testItem.bearerToken) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(1L) } returns Unit
+        coEvery { queueRepository.markAsSent(1L) } returns Unit
 
         // Item 2 (file) also succeeds
         every { PayloadFileHelper.loadPayload(context, "payload_uuid.json") } returns testPayload
         coEvery { webhookApi.send(testItemWithFile.url, testPayload, testItemWithFile.bearerToken) } returns
                 kotlin.Result.success("OK")
-        coEvery { queueRepository.deleteById(3L) } returns Unit
+        coEvery { queueRepository.markAsSent(3L) } returns Unit
 
         // when
         val worker = createWorker()
@@ -556,7 +565,10 @@ class QueueWorkerTest {
         coVerify(exactly = 1) {
             webhookApi.send(testItemWithFile.url, testPayload, testItemWithFile.bearerToken)
         }
-        coVerify(exactly = 1) { queueRepository.deleteById(1L) }
-        coVerify(exactly = 1) { queueRepository.deleteById(3L) }
+        // File cleaned up for second item, both marked as SENT
+        verify(exactly = 1) { PayloadFileHelper.deletePayload(context, "payload_uuid.json") }
+        coVerify(exactly = 1) { queueRepository.markAsSent(1L) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(3L) }
+        coVerify(exactly = 0) { queueRepository.deleteById(any()) }
     }
 }
