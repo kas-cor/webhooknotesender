@@ -76,8 +76,8 @@ webhooknotesender/
 │   ├── ui/                                   # Тема, навигация, экраны, компоненты
 │   └── util/                                 # Base64Encoder, NetworkMonitor, ShortcutHelper
 ├── app/src/main/res/
-│   ├── values/strings.xml                    # Английский (72 строки)
-│   └── values-ru/strings.xml                 # Русский (72 строки)
+│   ├── values/strings.xml                    # Английский (135 строк)
+│   └── values-ru/strings.xml                 # Русский (135 строк)
 ├── build.sh                                  # Универсальный скрипт сборки
 ├── .github/workflows/build-apk.yml           # CI/CD конвейер
 ├── AGENTS.md                                 # Документация для AI-агентов
@@ -263,7 +263,7 @@ Workflow: [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml)
 
 - **Push** в `main`, `develop`
 - **Pull Request** в `main`
-- **Push тега** `v*` (например, `v1.0`)
+- **Push тега** `v*` (например, `v0.3`)
 - **Вручную** через `workflow_dispatch`
 
 ### Конвейер
@@ -300,8 +300,8 @@ Push тега (после build-release):
 ### Процесс релиза
 
 ```bash
-git tag v1.0
-git push origin v1.0
+git tag v0.4
+git push origin v0.4
 # CI: увеличить версию → собрать → создать GitHub Release
 ```
 
@@ -309,8 +309,8 @@ git push origin v1.0
 
 ## Локализация 🌐
 
-- **Английский** — `app/src/main/res/values/strings.xml` (72 строки)
-- **Русский** — `app/src/main/res/values-ru/strings.xml` (72 строки)
+- **Английский** — `app/src/main/res/values/strings.xml` (135 строк)
+- **Русский** — `app/src/main/res/values-ru/strings.xml` (135 строк)
 
 ### Как добавить новый язык
 

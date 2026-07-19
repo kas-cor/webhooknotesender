@@ -98,8 +98,8 @@ webhooknotesender/
 │   │   └── components/                       # CaptureButton, AudioRecorder, StatusBadge
 │   └── util/                                 # Base64Encoder, NetworkMonitor, ShortcutHelper
 ├── app/src/main/res/
-│   ├── values/strings.xml                    # English (72 strings)
-│   └── values-ru/strings.xml                 # Russian (72 strings)
+│   ├── values/strings.xml                    # English (135 strings)
+│   └── values-ru/strings.xml                 # Russian (135 strings)
 ├── build.sh                                  # Universal build script
 ├── .github/workflows/build-apk.yml           # CI/CD pipeline
 └── AGENTS.md                                 # AI agent documentation
@@ -287,7 +287,7 @@ Workflow: [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml)
 
 - **Push** to `main`, `develop`
 - **Pull Request** to `main`
-- **Push tag** `v*` (e.g., `v1.0`)
+- **Push tag** `v*` (e.g., `v0.3`)
 - **Manual** via `workflow_dispatch`
 
 ### Pipeline
@@ -324,8 +324,8 @@ Tag push (after build-release):
 ### Release Process
 
 ```bash
-git tag v1.0
-git push origin v1.0
+git tag v0.4
+git push origin v0.4
 # CI: bump version → build → create GitHub Release
 ```
 
@@ -333,8 +333,8 @@ git push origin v1.0
 
 ## Localization 🌐
 
-- **English** — `app/src/main/res/values/strings.xml` (72 strings)
-- **Russian** — `app/src/main/res/values-ru/strings.xml` (72 strings)
+- **English** — `app/src/main/res/values/strings.xml` (135 strings)
+- **Russian** — `app/src/main/res/values-ru/strings.xml` (135 strings)
 
 ### How to add a new language
 

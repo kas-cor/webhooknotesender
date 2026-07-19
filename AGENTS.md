@@ -574,8 +574,8 @@ Workflow: `.github/workflows/build-apk.yml`
 ### Releasing
 ```bash
 # Bump versionName and versionCode in app/build.gradle.kts
-git tag v1.1
-git push origin v1.1
+git tag v0.4
+git push origin v0.4
 # CI handles: build → release
 ```
 
