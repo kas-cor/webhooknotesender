@@ -16,7 +16,6 @@ import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
 import com.kascorp.webhooknotesender.data.model.MediaType
-import com.kascorp.webhooknotesender.ui.components.AudioRecorderService
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
 import com.kascorp.webhooknotesender.util.MediaCompressor
@@ -183,20 +182,17 @@ class ShortcutReceiverActivity : ComponentActivity() {
     }
 
     private fun startAudioRecording(profile: ProfileEntity) {
-        val audioFile = File(cacheDir, "audio_${System.currentTimeMillis()}.aac")
-        currentAudioFile = audioFile
-        val intent = Intent(this, AudioRecorderService::class.java).apply {
-            putExtra("output_file", audioFile.absolutePath)
+        // Launch MainActivity which will navigate to the AudioRecordingScreen
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("shortcut_audio", true)
             putExtra("profile_id", profile.id)
             putExtra("profile_name", profile.name)
             putExtra("profile_prompt", profile.prompt)
             putExtra("profile_url", profile.url)
             putExtra("bearer_token", profile.bearerToken)
-            putExtra("profile_type", profile.type)
-            action = AudioRecorderService.ACTION_START_RECORDING
         }
-        ContextCompat.startForegroundService(this, intent)
-        Toast.makeText(this, getString(R.string.audio_recording_started), Toast.LENGTH_SHORT).show()
+        startActivity(launchIntent)
         finish()
     }
 

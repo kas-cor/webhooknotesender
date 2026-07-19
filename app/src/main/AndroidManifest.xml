@@ -29,6 +29,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.WebhookNoteSender">
             <intent-filter>
@@ -41,7 +42,6 @@
             android:name=".ShortcutReceiverActivity"
             android:exported="true"
             android:theme="@style/Theme.Transparent"
-            android:noHistory="true"
             android:excludeFromRecents="true"
             android:launchMode="singleTop">
             <intent-filter>

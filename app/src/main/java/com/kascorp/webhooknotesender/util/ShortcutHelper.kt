@@ -2,9 +2,12 @@ package com.kascorp.webhooknotesender.util
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.Icon
+import android.graphics.drawable.VectorDrawable
 import android.os.Build
 import android.os.Bundle
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -58,26 +61,53 @@ class ShortcutHelper @Inject constructor(
 
     /**
      * Removes shortcuts associated with a specific profile.
+     * Uses removeLongLivedShortcuts() on API 30+ to also remove pinned shortcuts
+     * from the home screen. Falls back to removeDynamicShortcuts() on older API.
      */
     fun removeShortcut(profileId: Long) {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
         prefs.edit().remove(shortcutId).apply()
-        ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
+        if (Build.VERSION.SDK_INT >= 30) {
+            val manager = context.getSystemService(ShortcutManager::class.java)
+            manager?.removeLongLivedShortcuts(listOf(shortcutId))
+        } else {
+            ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
+        }
     }
 
     /**
      * Checks if a shortcut exists for the given profile.
-     * Checks both pinned (via SharedPreferences) and dynamic shortcuts.
+     * Checks pinned shortcuts (API 33+), dynamic shortcuts, and SharedPreferences.
+     * If the shortcut was removed manually from the home screen, cleans up prefs.
      */
     fun isShortcutCreated(profileId: Long): Boolean {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
-        return prefs.getBoolean(shortcutId, false) ||
-            ShortcutManagerCompat.getDynamicShortcuts(context)
-                .any { it.id == shortcutId }
+        val prefsHas = prefs.getBoolean(shortcutId, false)
+        if (!prefsHas) return false
+
+        val existsInDynamic = ShortcutManagerCompat.getDynamicShortcuts(context)
+            .any { it.id == shortcutId }
+
+        // Check pinned shortcuts via platform API (Android 13+)
+        val existsInPinned = if (Build.VERSION.SDK_INT >= 33) {
+            val manager = context.getSystemService(ShortcutManager::class.java)
+            manager?.pinnedShortcuts?.any { it.id == shortcutId } ?: false
+        } else {
+            false
+        }
+
+        val exists = existsInDynamic || existsInPinned
+        if (!exists) {
+            // User removed the shortcut manually — clean up stale prefs entry
+            prefs.edit().remove(shortcutId).apply()
+        }
+        return exists
     }
 
     /**
      * Creates a ShortcutInfoCompat for the given profile.
+     * Generates a bitmap icon with a colored circle background
+     * and white icon for reliable rendering across launchers.
      */
     private fun createShortcutInfo(profile: ProfileEntity): ShortcutInfoCompat {
         val intent = Intent(ACTION_CAPTURE_SHORTCUT).apply {
@@ -92,11 +122,50 @@ class ShortcutHelper @Inject constructor(
             else -> R.drawable.ic_camera
         }
 
+        val bgColor = when (profile.type.lowercase()) {
+            "audio" -> 0xFF7C4DFF.toInt()
+            "video" -> 0xFF00C853.toInt()
+            else -> 0xFF448AFF.toInt()
+        }
+
+        val icon = createShortcutIcon(iconRes, bgColor)
+
         return ShortcutInfoCompat.Builder(context, "$SHORTCUT_PREFIX${profile.id}")
             .setShortLabel(profile.name)
             .setLongLabel(profile.name)
-            .setIcon(IconCompat.createWithResource(context, iconRes))
+            .setIcon(icon)
             .setIntent(intent)
             .build()
+    }
+
+    /**
+     * Generates a bitmap with a colored circle background and the vector icon in white.
+     */
+    private fun createShortcutIcon(iconRes: Int, bgColor: Int): IconCompat {
+        val size = context.resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width)
+            .coerceAtLeast(48)
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Draw colored circle background
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = bgColor
+            isDither = true
+        }
+        val cx = size / 2f
+        val cy = size / 2f
+        val radius = size / 2f
+        canvas.drawCircle(cx, cy, radius, bgPaint)
+
+        // Draw white icon on top
+        val drawable = context.getDrawable(iconRes)
+        if (drawable is VectorDrawable) {
+            val iconSize = (size * 0.56f).toInt()
+            val iconOffset = (size - iconSize) / 2
+            drawable.setBounds(iconOffset, iconOffset, iconOffset + iconSize, iconOffset + iconSize)
+            drawable.draw(canvas)
+        }
+
+        return IconCompat.createWithBitmap(bitmap)
     }
 }

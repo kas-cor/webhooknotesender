@@ -99,14 +99,16 @@ sealed class DetailScreen(val route: String) {
 
 @Composable
 fun AppNavigation(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    initialAudioRoute: String? = null,
+    onNavigated: () -> Unit = {}
 ) {
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val themeMode by settingsViewModel.themeMode.collectAsState()
 
     WebhookNoteSenderTheme(themeMode = themeMode) {
         Surface(modifier = Modifier.fillMaxSize()) {
-            AppNavigationContent(navController, settingsViewModel)
+            AppNavigationContent(navController, settingsViewModel, initialAudioRoute, onNavigated)
         }
     }
 }
@@ -114,7 +116,9 @@ fun AppNavigation(
 @Composable
 private fun AppNavigationContent(
     navController: NavHostController,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    initialAudioRoute: String? = null,
+    onNavigated: () -> Unit = {}
 ) {
     val screens = listOf(Screen.Profiles, Screen.Queue, Screen.Settings)
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -158,6 +162,14 @@ private fun AppNavigationContent(
                 permissionLauncher.launch(neededPermissions.toTypedArray())
             }
             permissionsRequested = true
+        }
+    }
+
+    // Navigate to audio recording screen if launched from shortcut
+    LaunchedEffect(initialAudioRoute) {
+        if (initialAudioRoute != null) {
+            navController.navigate(initialAudioRoute)
+            onNavigated()
         }
     }
 

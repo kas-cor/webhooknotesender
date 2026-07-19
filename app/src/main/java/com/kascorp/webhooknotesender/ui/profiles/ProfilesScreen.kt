@@ -55,6 +55,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -97,11 +98,13 @@ fun ProfilesScreen(
 
     var pendingCaptureProfileId by rememberSaveable { mutableStateOf(-1L) }
     var pendingCaptureUri by rememberSaveable { mutableStateOf<Uri?>(null) }
-    // Audio profile data stored separately to avoid stale closure references in permission launcher callback
     var pendingAudioName by rememberSaveable { mutableStateOf("") }
     var pendingAudioPrompt by rememberSaveable { mutableStateOf("") }
     var pendingAudioUrl by rememberSaveable { mutableStateOf("") }
     var pendingAudioToken by rememberSaveable { mutableStateOf("") }
+
+    // Forces recomposition after shortcut create/remove to re-evaluate hasShortcut
+    var shortcutRefreshKey by rememberSaveable { mutableIntStateOf(0) }
 
     fun formatSize(bytes: Long): String {
         return when {
@@ -125,7 +128,6 @@ fun ProfilesScreen(
                 result = viewModel.compressAndEncode(profile, bytes)
                 viewModel.enqueueCapturedMedia(profile, result!!.base64, result.encoding)
             }
-            // Clean up temp file from cache dir
             val fileName = uri.lastPathSegment
             if (fileName != null) {
                 val tempFile = File(context.cacheDir, fileName)
@@ -158,7 +160,6 @@ fun ProfilesScreen(
                 result = viewModel.compressAndEncode(profile, bytes)
                 viewModel.enqueueCapturedMedia(profile, result!!.base64, result.encoding)
             }
-            // Clean up temp file from cache dir
             val fileName = uri.lastPathSegment
             if (fileName != null) {
                 val tempFile = File(context.cacheDir, fileName)
@@ -217,6 +218,12 @@ fun ProfilesScreen(
         } else {
             Toast.makeText(context, context.getString(R.string.permission_required, "Microphone"), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun onShortcutOp(profile: ProfileEntity, isRemove: Boolean) {
+        if (isRemove) viewModel.removeShortcut(profile.id)
+        else viewModel.createShortcut(profile)
+        shortcutRefreshKey++
     }
 
     Scaffold(
@@ -295,9 +302,9 @@ fun ProfilesScreen(
                                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         },
-                        onCreateShortcut = { viewModel.createShortcut(profile) },
-                        onRemoveShortcut = { viewModel.removeShortcut(profile.id) },
-                        hasShortcut = viewModel.isShortcutCreated(profile.id)
+                        onShortcutToggle = { isRemove -> onShortcutOp(profile, isRemove) },
+                        hasShortcut = viewModel.isShortcutCreated(profile.id),
+                        refreshKey = shortcutRefreshKey
                     )
                 }
             }
@@ -351,9 +358,9 @@ fun ProfileCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onCapture: () -> Unit,
-    onCreateShortcut: () -> Unit,
-    onRemoveShortcut: () -> Unit,
-    hasShortcut: Boolean
+    onShortcutToggle: (isRemove: Boolean) -> Unit,
+    hasShortcut: Boolean,
+    refreshKey: Int
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -404,7 +411,6 @@ fun ProfileCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = cardElevation)
     ) {
-        // Colorful top strip
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -420,7 +426,6 @@ fun ProfileCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Colorful type icon
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -448,7 +453,6 @@ fun ProfileCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Type chip
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
@@ -513,7 +517,7 @@ fun ProfileCard(
                         text = { Text(if (hasShortcut) stringResource(R.string.remove_shortcut) else stringResource(R.string.create_shortcut)) },
                         onClick = {
                             showMenu = false
-                            if (hasShortcut) onRemoveShortcut() else onCreateShortcut()
+                            onShortcutToggle(hasShortcut)
                         },
                         leadingIcon = {
                             Icon(
