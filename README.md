@@ -122,6 +122,7 @@ webhooknotesender/
 | **Preferences** | DataStore Preferences |
 | **Camera** | CameraX 1.4.1 + ActivityResultContracts |
 | **Audio** | MediaRecorder + Foreground Service |
+| **Video Compression** | GZIP (file bytes) — transcoding removed |
 | **minSdk / targetSdk / compileSdk** | 26 / 35 / 36 |
 | **Testing** | JUnit 4.13.2 |
 
@@ -272,8 +273,9 @@ Each profile can be pinned to the device home screen for one-tap capture:
 2. System will prompt to confirm pinning to home screen
 
 **Dynamic shortcuts** (app icon long-press menu):
-- First 5 profiles are available in the long-press menu
-- Updated automatically when profiles change
+- Top 5 most-used profiles (by usage frequency) are available in the long-press menu
+- Updated automatically on startup, after captures, saves, and deletes
+- Distinct `"app_shortcut_"` ID prefix avoids collision with pinned shortcuts
 
 ---
 
@@ -373,6 +375,7 @@ cp app/src/main/res/values/strings.xml app/src/main/res/values-de/strings.xml
 | Version | Date | Highlights |
 |---|---|---|
 | v1.0.0 | 2026-07-18 | Initial release: profile CRUD, media capture, queue with WorkManager, shortcuts, bilingual UI |
+| [Unreleased] | — | App shortcuts (long-press), use_count tracking, video transcode removed (fixes hang), shortcut lifecycle fixes |
 
 ---
 

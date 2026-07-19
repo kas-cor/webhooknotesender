@@ -9,12 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- DataStore persistence for theme mode and language selection
-- Additional unit tests (ViewModel, Base64Encoder, DAOs)
-- JaCoCo coverage report with verification gates
-- AutoMirrored icons for deprecated Shortcut references
-- Profile-based audio recording from shortcut (polish)
+### Added
+- **App Shortcuts (long-press app icon)**: Top 5 most-used profiles now appear on long-press of the app icon. Usage frequency (`use_count`) tracked per profile and incremented on each capture. App shortcuts update on startup, after capture, save, and delete.
+- **`use_count` column** in `profiles` table (migration 4→5) for tracking profile usage frequency
+- **`ShortcutHelper.updateAppShortcuts()`**: Sets dynamic shortcuts with distinct `"app_shortcut_"` ID prefix to avoid collision with pinned shortcuts
+
+### Changed
+- **Video compression**: Removed broken MediaCodec transcode pipeline (`transcodeVideo` / `compressVideoFile`). Video via shortcuts now uses simple gzip compression (same as audio and in-app path). The decoder/encoder/surface pipeline caused infinite loop hang.
+- **Shortcut creation**: `requestPinShortcut()` now cleans up disabled shortcuts (Xiaomi) before creating, using `enableShortcuts()` + platform API `removeLongLivedShortcuts()` to avoid crash on re-create
+- **Shortcut state tracking**: `isShortcutCreated()` now uses SharedPreferences as source of truth for pinned shortcuts (Xiaomi doesn't report pinned via platform API)
+- **ProfilesViewModel**: `enqueueCapturedMedia()` increments `useCount` and updates app shortcuts; `saveProfile()` (update) and `deleteProfile()` also update app shortcuts
+- **ShortcutReceiverActivity / AudioRecorderService**: Both increment `useCount` after successful capture
+
+### Fixed
+- **Shortcut re-create crash**: `requestPinShortcut()` now cleans up disabled shortcuts before creating, preventing `IllegalArgumentException: Shortcut ID already exists but disabled`
+- **Video capture hang**: Removed broken `transcodeVideo()` which caused infinite loop when encoder never received frames via surface
+- **Shortcut state on app resume**: `DisposableEffect` with `LifecycleEventObserver` refreshes shortcut status on `ON_RESUME`
+- **Shortcut state on menu open**: `onOpenMenu` callback re-checks `isShortcutCreated()` before showing menu
+
+### Removed
+- `compressVideoFile()` and `transcodeVideo()` methods (120+ lines of broken MediaCodec pipeline)
+- MediaCodec-related imports (MediaCodec, MediaCodecInfo, MediaExtractor, MediaFormat, MediaMuxer)
+
+---
 
 ---
 

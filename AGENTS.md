@@ -32,7 +32,8 @@
 | Camera | CameraX 1.4.1 + ActivityResultContracts |
 | Audio | MediaRecorder (AAC, 44100Hz) |
 | Image compression | BitmapFactory + JPEG re-encode |
-| Video transcoding | MediaCodec (decode → H.264 AVC encode → MP4 mux) |
+| Video compression | GZIP (file bytes) — same as audio; broken MediaCodec transcode removed |
+| Video transcode (removed) | `transcodeVideo` + `compressVideoFile` — decode→H.264→MP4 mux; caused infinite loop hang |
 | Build | AGP 8.7.3 / Gradle 8.9 |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 36 |
 | Testing | JUnit 4.13.2, Robolectric 4.13 |
@@ -72,7 +73,7 @@ WebhookNoteSenderApp (Hilt Application, implements Configuration.Provider)
 - **Room + Flow**: DAOs return `Flow<List<T>>` for reactive UI updates via `collectAsState()`
 - **WorkManager**: QueueWorker processes all `PENDING` items on each run. Uses `ExistingWorkPolicy.REPLACE` to avoid duplicate workers. Exponential backoff 30s initial, max 5min
 - **Large payloads**: Items with Base64 data exceeding ~2 MB use `PayloadFileHelper` to store JSON in cache files instead of Room, avoiding `SQLiteBlobTooBigException`
-- **Media compression**: Images are re-encoded as JPEG (quality 0-100). Audio/video are gzip-compressed. Video is additionally transcoded to H.264 MP4 before gzip
+- **Media compression**: Images are re-encoded as JPEG (quality 0-100). Audio/video are gzip-compressed. Video transcoding via MediaCodec was removed (broken pipeline caused infinite loop hang) — video now uses gzip-only, same as audio.
 - **Transparent activity**: `ShortcutReceiverActivity` uses `Theme.Transparent` — no visible UI, handles camera/audio and finishes immediately
 - **Foreground service**: Audio recording uses `AudioRecorderService` with `foregroundServiceType="microphone"`
 
@@ -82,23 +83,23 @@ WebhookNoteSenderApp (Hilt Application, implements Configuration.Provider)
 
 ```
 app/src/main/java/com/kascorp/webhooknotesender/
-├── WebhookNoteSenderApp.kt              # Application class, Hilt + WorkManager config
+├── WebhookNoteSenderApp.kt              # Application class, Hilt + WorkManager config + app shortcuts init
 ├── MainActivity.kt                       # Single Activity, Compose host (attachBaseContext locale)
-├── ShortcutReceiverActivity.kt           # Transparent activity for shortcuts
+├── ShortcutReceiverActivity.kt           # Transparent activity for shortcuts + useCount tracking
 ├── di/
 │   ├── AppModule.kt                      # DataStore, OkHttp, Json, Base64, NetworkMonitor
-│   ├── DatabaseModule.kt                 # Room database + DAOs
+│   ├── DatabaseModule.kt                 # Room database + DAOs (MIGRATION_4_5) 
 │   └── RepositoryModule.kt              # Empty (repos via @Inject constructors)
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt                # Room database (v4), 3 migrations
+│   │   ├── AppDatabase.kt                # Room database (v5), 4 migrations
 │   │   ├── PayloadFileHelper.kt          # Large payload file I/O (save/load/delete/cleanup)
 │   │   ├── dao/
-│   │   │   ├── ProfileDao.kt             # CRUD + unique name check
+│   │   │   ├── ProfileDao.kt             # CRUD + unique name check + getTopProfiles + incrementUseCount
 │   │   │   └── QueueDao.kt               # CRUD + status updates + pending count + orphan cleanup
 │   │   └── entity/
 │   │       ├── ProfileEntity.kt          # id, name (UNIQUE), type, prompt, url,
-│   │       │                                bearerToken, compressEnabled, compressionQuality
+│   │       │                                bearerToken, compressEnabled, compressionQuality, useCount, useCount
 │   │       └── QueueItemEntity.kt        # id, profileName, url, bearerToken, jsonPayload,
 │   │                                        payloadFilePath, mediaType, status, attempts,
 │   │                                        lastError, createdAt
@@ -158,8 +159,7 @@ MediaCompressor.compress(bytes, type, quality)  /  .compressFile(file, type, qua
   │
   ├─ "image" → BitmapFactory.decode → Bitmap.compress(JPEG, quality) → CompressResult("jpeg")
   │
-  ├─ "video" → transcodeVideo (MediaCodec decode → H.264 encode → MP4)
-  │              → gzipCompress(transcoded) → CompressResult("gzip")
+  ├─ "video" → gzipCompress(raw bytes) → CompressResult("gzip")   ← gzip only (transcode removed)
   │
   └─ "audio" / else → gzipCompress(raw bytes) → CompressResult("gzip")
 ```
@@ -210,6 +210,7 @@ QueueWorker.doWork()
 
 ### Shortcut flow (without opening app)
 
+#### Pinned shortcuts (home screen)
 ```
 User taps home screen shortcut
   │
@@ -217,9 +218,20 @@ User taps home screen shortcut
        ├─ Read profile_id from Intent
        ├─ Load profile from Room (coroutine)
        │
-       ├─ image → request CAMERA permission → TakePicture → compress → encode → queue → finish()
-       ├─ video → request CAMERA permission → CaptureVideo → compress → encode → queue → finish()
+       ├─ image → request CAMERA permission → TakePicture → compress (gzip) → encode → queue → finish()
+       ├─ video → request CAMERA permission → CaptureVideo → compress (gzip) → encode → queue → finish()
        └─ audio → request RECORD_AUDIO → start AudioRecorderService → finish()
+```
+
+#### Dynamic shortcuts (long-press app icon)
+```
+User long-presses app icon (launcher)
+  │
+  ├─ ShortcutManager displays up to 5 dynamic shortcuts
+  │  (set via ShortcutHelper.updateAppShortcuts() on startup + after captures)
+  │
+  └─ User taps a profile shortcut
+       └─ Same flow as pinned shortcuts → ShortcutReceiverActivity
 ```
 
 ---
@@ -237,7 +249,8 @@ User taps home screen shortcut
 | `url` | String | Webhook URL |
 | `bearer_token` | String? | Bearer token, nullable |
 | `compress_enabled` | Boolean | Enable media compression (default `true`) |
-| `compression_quality` | Int | JPEG quality 0–100 / video bitrate % (default `70`) |
+| `compression_quality` | Int | JPEG quality 0–100 / (default `70`); for audio/video — ignored (gzip only) |
+| `use_count` | Int | Usage frequency counter for app shortcuts ranking (default `0`) |
 
 ### Table `queue_items`
 
@@ -262,6 +275,7 @@ User taps home screen shortcut
 | 1 | 2 | Add `payload_file_path TEXT` to `queue_items` |
 | 2 | 3 | Clear oversized json_payload (>100KB), delete SENT items |
 | 3 | 4 | Add `compress_enabled INTEGER` and `compression_quality INTEGER` to `profiles` |
+| 4 | 5 | Add `use_count INTEGER NOT NULL DEFAULT 0` to `profiles` |
 
 ---
 
@@ -317,12 +331,13 @@ Accept: application/json
 ### `ProfilesViewModel`
 - Manages list of `ProfileEntity` via `StateFlow`
 - Form state for create/edit with validation
-- `saveProfile()` — insert or update in Room, handles UNIQUE constraint
-- `deleteProfile()` — removes shortcut if exists, deletes from Room
+- `saveProfile()` — insert or update in Room, handles UNIQUE constraint; updates app shortcuts on rename
+- `deleteProfile()` — removes shortcut if exists, deletes from Room; updates app shortcuts
 - `createShortcut()` — `ShortcutHelper.requestPinShortcut()`
+- `isShortcutCreated()` / `removeShortcut()` — delegates to `ShortcutHelper`
 - `compressAndEncode()` — compresses via `MediaCompressor`, encodes via `Base64Encoder`
 - `buildJsonPayload()` — constructs JSON with name/prompt/datetime/type/data/encoding
-- `enqueueCapturedMedia()` — builds JSON payload (file-backed for large payloads), inserts to queue, triggers worker
+- `enqueueCapturedMedia()` — builds JSON payload (file-backed for large payloads), inserts to queue, triggers worker; increments profile `useCount` and updates app shortcuts
 - `testWebhook()` — sends test payload with empty Base64 to verify connectivity
 
 ### `QueueWorker` (HiltWorker)
@@ -331,18 +346,26 @@ Accept: application/json
 - Returns `Result.retry()` if any item needs retry, `Result.success()` otherwise
 - Static `enqueue(context)` — creates `OneTimeWorkRequest` with `NetworkType.CONNECTED` constraint
 
+### `ShortcutHelper`
+- `@Singleton` class, `@Inject constructor(@ApplicationContext)`
+- `requestPinShortcut(profile)` — pinned shortcut on home screen (user confirms via system dialog); cleans up disabled shortcut first to avoid crash
+- `removeShortcut(profileId)` — removes pinned/dynamic shortcut via 4 fallback methods (dynamic, compat long-lived, platform API 30+, disable as grey fallback)
+- `isShortcutCreated(profileId)` — checks via dynamic shortcuts API and SharedPreferences (source of truth for pinned shortcuts; Xiaomi launchers don't report pinned shortcuts correctly)
+- `updateAppShortcuts(profiles)` — sets top 5 profiles as dynamic shortcuts for app icon long-press menu; uses distinct `"app_shortcut_"` ID prefix to avoid collision with pinned `"shortcut_"`
+- `createShortcutInfo(profile, idPrefix, longLived)` — creates `ShortcutInfoCompat` with colored circle icon, reused for both pinned and app shortcuts
+
 ### `ShortcutReceiverActivity`
 - Transparent theme, no visible UI
 - Receives `profile_id` from shortcut Intent
 - Requests permissions (CAMERA or RECORD_AUDIO) at runtime
 - Launches camera or starts audio recording service
-- On capture complete: compresses + encodes to Base64, inserts to queue (file-backed), shows toast, finishes
+- On capture complete: compresses + encodes to Base64, inserts to queue (file-backed), increments profile `useCount`, shows toast, finishes
 
 ### `AudioRecorderService`
 - Foreground service with `microphone` type
 - Records AAC audio via `MediaRecorder` to cache directory
 - Notification with stop action
-- On stop: compresses + encodes to Base64, deletes temp file, inserts to queue, triggers worker
+- On stop: compresses + encodes to Base64, deletes temp file, inserts to queue, increments profile `useCount`, triggers worker
 
 ### `MediaCompressor`
 - `@Singleton` class, `@Inject constructor()`
@@ -350,8 +373,7 @@ Accept: application/json
 - `compressFile(file, mediaType, quality)` — file-based dispatch
 - `compressImageBytes / compressImageFile` — decode → JPEG re-encode
 - `gzipCompress / gzipDecompress` — GZIP for audio/video/fallback
-- `compressVideoFile` — transcodes to H.264 MP4 via `transcodeVideo`, then gzips
-- `transcodeVideo` — full MediaCodec pipeline: decode → H.264 encode → MP4 mux
+- **Note:** Video transcoding via MediaCodec (`transcodeVideo` / `compressVideoFile`) was **removed** because the decoder/encoder/surface pipeline caused an infinite loop hang. Both `compress()` and `compressFile()` now use the same gzip-only path for audio/video.
 - Returns `CompressResult` with `data`, `encoding` (`"jpeg"` / `"gzip"`), `originalSize`, `compressedSize`
 
 ### `WebhookApi`
