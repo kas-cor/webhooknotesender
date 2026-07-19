@@ -153,6 +153,49 @@ if (checkTask != null) {
     checkTask.dependsOn("checkHardcodedStrings")
 }
 
+// ──────────────────────────────────────────────
+// Task: переименование APK после сборки
+// ──────────────────────────────────────────────
+
+tasks.register("renameApk") {
+    notCompatibleWithConfigurationCache("Accesses android.defaultConfig at runtime via doLast")
+    doLast {
+        val version = android.defaultConfig.versionName ?: "unknown"
+        fun renameApk(variant: String) {
+            val apk = file("build/outputs/apk/${variant}/app-${variant}.apk")
+            if (apk.exists()) {
+                val newName = "WebhookNoteSender-v${version}-${variant}.apk"
+                val newFile = File(apk.parent, newName)
+                if (apk.renameTo(newFile)) {
+                    logger.lifecycle("✅ APK renamed: app-${variant}.apk → ${newName}")
+                } else {
+                    logger.warn("⚠️ Failed to rename APK: app-${variant}.apk")
+                }
+            }
+        }
+        renameApk("release")
+        renameApk("debug")
+        // Also keep a copy with the original name for adb compatibility
+        // (adb install commands reference the original path)
+        fun copyAsOriginal(variant: String) {
+            val renamed = file("build/outputs/apk/${variant}/WebhookNoteSender-v${version}-${variant}.apk")
+            val original = file("build/outputs/apk/${variant}/app-${variant}.apk")
+            if (renamed.exists() && !original.exists()) {
+                renamed.copyTo(original, overwrite = true)
+                logger.lifecycle("  Original name also kept: app-${variant}.apk (for adb)")
+            }
+        }
+        copyAsOriginal("release")
+        copyAsOriginal("debug")
+    }
+}
+
+// Запускаем переименование после сборки
+val assembleDebugTask = tasks.findByName("assembleDebug")
+assembleDebugTask?.finalizedBy("renameApk")
+val assembleReleaseTask = tasks.findByName("assembleRelease")
+assembleReleaseTask?.finalizedBy("renameApk")
+
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
