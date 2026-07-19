@@ -53,13 +53,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +70,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -102,9 +108,6 @@ fun ProfilesScreen(
     var pendingAudioPrompt by rememberSaveable { mutableStateOf("") }
     var pendingAudioUrl by rememberSaveable { mutableStateOf("") }
     var pendingAudioToken by rememberSaveable { mutableStateOf("") }
-
-    // Forces recomposition after shortcut create/remove to re-evaluate hasShortcut
-    var shortcutRefreshKey by rememberSaveable { mutableIntStateOf(0) }
 
     fun formatSize(bytes: Long): String {
         return when {
@@ -220,11 +223,7 @@ fun ProfilesScreen(
         }
     }
 
-    fun onShortcutOp(profile: ProfileEntity, isRemove: Boolean) {
-        if (isRemove) viewModel.removeShortcut(profile.id)
-        else viewModel.createShortcut(profile)
-        shortcutRefreshKey++
-    }
+
 
     Scaffold(
         floatingActionButton = {
@@ -262,6 +261,26 @@ fun ProfilesScreen(
                 }
 
                 items(profiles, key = { it.id }) { profile ->
+                    var isShortcut by remember { mutableStateOf(viewModel.isShortcutCreated(profile.id)) }
+
+                    val toggleScope = rememberCoroutineScope()
+
+                    fun refreshShortcut() {
+                        isShortcut = viewModel.isShortcutCreated(profile.id)
+                    }
+
+                    // Refresh shortcut status when app resumes (e.g. after manually removing from home screen)
+                    val lifecycleOwner = LocalLifecycleOwner.current
+                    DisposableEffect(lifecycleOwner, profile.id) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                refreshShortcut()
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
+
                     ProfileCard(
                         profile = profile,
                         onEdit = { onEditProfile(profile.id) },
@@ -302,9 +321,22 @@ fun ProfilesScreen(
                                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         },
-                        onShortcutToggle = { isRemove -> onShortcutOp(profile, isRemove) },
-                        hasShortcut = viewModel.isShortcutCreated(profile.id),
-                        refreshKey = shortcutRefreshKey
+                        isShortcut = isShortcut,
+                        onToggleShortcut = {
+                            if (isShortcut) {
+                                viewModel.removeShortcut(profile.id)
+                                isShortcut = false
+                            } else {
+                                viewModel.createShortcut(profile)
+                                isShortcut = true // Optimistic
+                                // Verify after dialog should have closed
+                                toggleScope.launch {
+                                    delay(3000)
+                                    refreshShortcut()
+                                }
+                            }
+                        },
+                        onOpenMenu = { refreshShortcut() }
                     )
                 }
             }
@@ -358,9 +390,9 @@ fun ProfileCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onCapture: () -> Unit,
-    onShortcutToggle: (isRemove: Boolean) -> Unit,
-    hasShortcut: Boolean,
-    refreshKey: Int
+    isShortcut: Boolean,
+    onToggleShortcut: () -> Unit,
+    onOpenMenu: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -401,7 +433,10 @@ fun ProfileCard(
             .scale(cardScale)
             .combinedClickable(
                 onClick = onCapture,
-                onLongClick = { showMenu = true },
+                onLongClick = {
+                    onOpenMenu()
+                    showMenu = true
+                },
                 interactionSource = interactionSource,
                 indication = null
             ),
@@ -466,7 +501,7 @@ fun ProfileCard(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                    if (hasShortcut) {
+                    if (isShortcut) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Filled.Shortcut,
@@ -494,7 +529,10 @@ fun ProfileCard(
             }
 
             Box {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = {
+                    onOpenMenu()
+                    showMenu = true
+                }) {
                     Icon(
                         Icons.Filled.MoreVert,
                         contentDescription = stringResource(R.string.cd_more_options),
@@ -514,14 +552,14 @@ fun ProfileCard(
                         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text(if (hasShortcut) stringResource(R.string.remove_shortcut) else stringResource(R.string.create_shortcut)) },
+                        text = { Text(if (isShortcut) stringResource(R.string.remove_shortcut) else stringResource(R.string.create_shortcut)) },
                         onClick = {
                             showMenu = false
-                            onShortcutToggle(hasShortcut)
+                            onToggleShortcut()
                         },
                         leadingIcon = {
                             Icon(
-                                if (hasShortcut) Icons.Outlined.Shortcut else Icons.Filled.Shortcut,
+                                if (isShortcut) Icons.Outlined.Shortcut else Icons.Filled.Shortcut,
                                 contentDescription = null
                             )
                         }

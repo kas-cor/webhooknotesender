@@ -57,6 +57,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.kascorp.webhooknotesender.MainActivity
 import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.ui.audio.AudioRecordingScreen
 import com.kascorp.webhooknotesender.ui.profiles.ProfileEditScreen
@@ -79,20 +80,21 @@ sealed class DetailScreen(val route: String) {
         fun createRoute(profileId: Long = -1L) = "profile_edit/$profileId"
     }
     data object AudioRecording : DetailScreen(
-        "audio_recording/{profileId}/{profileName}/{profilePrompt}/{profileUrl}/{bearerToken}"
+        "audio_recording/{profileId}/{profileName}/{profilePrompt}/{profileUrl}/{bearerToken}?isFromShortcut={isFromShortcut}"
     ) {
         fun createRoute(
             profileId: Long,
             profileName: String,
             profilePrompt: String,
             profileUrl: String,
-            bearerToken: String?
+            bearerToken: String?,
+            isFromShortcut: Boolean = false
         ): String {
             val encodedName = Uri.encode(profileName)
             val encodedPrompt = Uri.encode(profilePrompt)
             val encodedUrl = Uri.encode(profileUrl)
             val encodedToken = Uri.encode(bearerToken ?: "")
-            return "audio_recording/$profileId/$encodedName/$encodedPrompt/$encodedUrl/$encodedToken"
+            return "audio_recording/$profileId/$encodedName/$encodedPrompt/$encodedUrl/$encodedToken?isFromShortcut=$isFromShortcut"
         }
     }
 }
@@ -304,10 +306,12 @@ private fun AppNavigationContent(
                     navArgument("profileName") { type = NavType.StringType },
                     navArgument("profilePrompt") { type = NavType.StringType },
                     navArgument("profileUrl") { type = NavType.StringType },
-                    navArgument("bearerToken") { type = NavType.StringType; defaultValue = "" }
+                    navArgument("bearerToken") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("isFromShortcut") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val args = backStackEntry.arguments ?: return@composable
+                val isFromShortcut = args.getBoolean("isFromShortcut")
                 AudioRecordingScreen(
                     profileId = args.getLong("profileId"),
                     profileName = Uri.decode(args.getString("profileName") ?: ""),
@@ -315,7 +319,14 @@ private fun AppNavigationContent(
                     profileUrl = Uri.decode(args.getString("profileUrl") ?: ""),
                     bearerToken = Uri.decode(args.getString("bearerToken") ?: "").ifEmpty { null },
                     profileType = "audio",
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = {
+                        if (isFromShortcut) {
+                            // From shortcut: close the app without showing profiles
+                            (context as? MainActivity)?.finishAffinity()
+                        } else {
+                            navController.popBackStack()
+                        }
+                    }
                 )
             }
         }

@@ -36,16 +36,37 @@ class ShortcutHelper @Inject constructor(
     /**
      * Creates a pinned shortcut on the home screen.
      * Requires user confirmation via system dialog.
+     * Cleans up any existing (e.g., disabled) shortcut first to avoid crash.
      */
     fun requestPinShortcut(profile: ProfileEntity) {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
             return
         }
 
+        // Clean up any existing shortcut (disabled/greyed out) to avoid crash when re-creating
+        val shortcutId = "$SHORTCUT_PREFIX${profile.id}"
+        try {
+            ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
+        } catch (_: Exception) { }
+        try {
+            ShortcutManagerCompat.removeLongLivedShortcuts(context, listOf(shortcutId))
+        } catch (_: Exception) { }
+        // Platform API (API 30+): enable then remove disabled shortcuts.
+        // Xiaomi launcher doesn't remove disabled shortcuts via compat methods,
+        // so we enable first, then remove via platform API.
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                val manager = context.getSystemService(ShortcutManager::class.java)
+                manager?.enableShortcuts(listOf(shortcutId))
+                manager?.removeLongLivedShortcuts(listOf(shortcutId))
+                manager?.removeDynamicShortcuts(listOf(shortcutId))
+            } catch (_: Exception) { }
+        }
+
         val shortcut = createShortcutInfo(profile)
         ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
         // Track pinned shortcut for isShortcutCreated()
-        prefs.edit().putBoolean("$SHORTCUT_PREFIX${profile.id}", true).apply()
+        prefs.edit().putBoolean(shortcutId, true).apply()
     }
 
     /**
@@ -61,47 +82,59 @@ class ShortcutHelper @Inject constructor(
 
     /**
      * Removes shortcuts associated with a specific profile.
-     * Uses removeLongLivedShortcuts() on API 30+ to also remove pinned shortcuts
-     * from the home screen. Falls back to removeDynamicShortcuts() on older API.
+     * Tries multiple removal methods to ensure pinned shortcuts are removed
+     * from the home screen across different launchers.
      */
     fun removeShortcut(profileId: Long) {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
         prefs.edit().remove(shortcutId).apply()
-        if (Build.VERSION.SDK_INT >= 30) {
-            val manager = context.getSystemService(ShortcutManager::class.java)
-            manager?.removeLongLivedShortcuts(listOf(shortcutId))
-        } else {
+
+        // Method 1: Remove from dynamic shortcuts (all API levels)
+        try {
             ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
+        } catch (_: Exception) { }
+
+        // Method 2: Remove long-lived/pinned via compat library
+        try {
+            ShortcutManagerCompat.removeLongLivedShortcuts(context, listOf(shortcutId))
+        } catch (_: Exception) { }
+
+        // Method 3: Remove long-lived/pinned via platform API (API 30+)
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                val manager = context.getSystemService(ShortcutManager::class.java)
+                manager?.removeLongLivedShortcuts(listOf(shortcutId))
+            } catch (_: Exception) { }
         }
+
+        // Method 4: Disable as fallback — grays out the shortcut so tapping does nothing
+        try {
+            ShortcutManagerCompat.disableShortcuts(
+                context,
+                listOf(shortcutId),
+                "Shortcut removed"
+            )
+        } catch (_: Exception) { }
     }
 
     /**
      * Checks if a shortcut exists for the given profile.
-     * Checks pinned shortcuts (API 33+), dynamic shortcuts, and SharedPreferences.
-     * If the shortcut was removed manually from the home screen, cleans up prefs.
+     * Uses dynamic shortcuts (reliable across all launchers) and SharedPreferences
+     * (for pinned shortcuts — some launchers like Xiaomi don't report pinned
+     * shortcuts correctly via the platform API).
      */
     fun isShortcutCreated(profileId: Long): Boolean {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
-        val prefsHas = prefs.getBoolean(shortcutId, false)
-        if (!prefsHas) return false
 
+        // Dynamic shortcuts are reliably reported across all launchers
         val existsInDynamic = ShortcutManagerCompat.getDynamicShortcuts(context)
             .any { it.id == shortcutId }
+        if (existsInDynamic) return true
 
-        // Check pinned shortcuts via platform API (Android 13+)
-        val existsInPinned = if (Build.VERSION.SDK_INT >= 33) {
-            val manager = context.getSystemService(ShortcutManager::class.java)
-            manager?.pinnedShortcuts?.any { it.id == shortcutId } ?: false
-        } else {
-            false
-        }
-
-        val exists = existsInDynamic || existsInPinned
-        if (!exists) {
-            // User removed the shortcut manually — clean up stale prefs entry
-            prefs.edit().remove(shortcutId).apply()
-        }
-        return exists
+        // For pinned shortcuts, trust SharedPreferences as source of truth.
+        // Some launchers (Xiaomi, etc.) don't report pinned shortcuts via the
+        // platform API, so we can't use pinnedShortcuts for cleanup.
+        return prefs.getBoolean(shortcutId, false)
     }
 
     /**
@@ -135,6 +168,7 @@ class ShortcutHelper @Inject constructor(
             .setLongLabel(profile.name)
             .setIcon(icon)
             .setIntent(intent)
+            .setLongLived(true)
             .build()
     }
 

@@ -77,9 +77,13 @@ class MainActivity : ComponentActivity() {
                     profileName = profileName,
                     profilePrompt = profilePrompt,
                     profileUrl = profileUrl,
-                    bearerToken = bearerToken
+                    bearerToken = bearerToken,
+                    isFromShortcut = true
                 )
             }
+            // Clear extras so recreate (e.g. locale change) won't re-trigger navigation
+            intent.removeExtra("shortcut_audio")
+            intent.removeExtra("profile_id")
         }
     }
 
