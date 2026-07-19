@@ -108,14 +108,14 @@ class MediaCompressorTest {
     // ===================== compress() public API =====================
 
     @Test
-    fun `compress for image returns result without encoding`() {
+    fun `compress for image returns result with jpeg encoding`() {
         val data = createTestBitmapBytes()
         val result = compressor.compress(data, "image", 50)
         assert(result.data.size < data.size) { "Compressed data should be smaller than original" }
         assert(result.compressedSize < result.originalSize) {
             "Compressed size (${result.compressedSize}) should be < original (${result.originalSize})"
         }
-        assert(result.encoding == null) { "encoding should be null for image, got '${result.encoding}'" }
+        assert(result.encoding == "jpeg") { "encoding should be 'jpeg' for image, got '${result.encoding}'" }
     }
 
     @Test

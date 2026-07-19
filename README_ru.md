@@ -205,7 +205,8 @@ export KEYSTORE_PASSWORD=your-password
       "prompt": "Опишите, что ИИ должен сделать с этим медиа...",
       "datetime": "2026-07-18T12:00:00Z",
       "type": "image",
-      "data": "/9j/4AAQSkZJRg...Base64-закодированное-содержимое..."
+      "data": "/9j/4AAQSkZJRg...Base64-закодированное-содержимое...",
+      "encoding": "jpeg"
     }
   ]
 }
@@ -218,6 +219,7 @@ export KEYSTORE_PASSWORD=your-password
 | `datetime` | Время захвата в ISO 8601 UTC (`yyyy-MM-dd'T'HH:mm:ss'Z'`) |
 | `type` | Тип медиа: `image`, `audio` или `video` |
 | `data` | Base64-закодированное содержимое файла (NO_WRAP) |
+| `encoding` | *(опционально)* Сжатие: `"jpeg"` для изображений, `"gzip"` для аудио/видео, отсутствует когда сжатие отключено |
 
 ### Стратегия повторов очереди
 

@@ -45,3 +45,6 @@ logcat.txt
 
 # Gradle
 !gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin daemon sessions
+.kotlin/

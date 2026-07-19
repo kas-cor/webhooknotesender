@@ -21,7 +21,7 @@ class MediaCompressor @Inject constructor() {
         return when (mediaType.lowercase()) {
             "image" -> {
                 val compressed = compressImageBytes(data, quality)
-                CompressResult(compressed, null, originalSize, compressed.size.toLong())
+                CompressResult(compressed, "jpeg", originalSize, compressed.size.toLong())
             }
             else -> {
                 val compressed = gzipCompress(data)
@@ -35,11 +35,15 @@ class MediaCompressor @Inject constructor() {
         return when (mediaType.lowercase()) {
             "image" -> {
                 val compressed = compressImageFile(file, quality)
-                CompressResult(compressed, null, originalSize, compressed.size.toLong())
+                CompressResult(compressed, "jpeg", originalSize, compressed.size.toLong())
             }
             "video" -> {
                 val result = compressVideoFile(file, quality)
                 result.copy(originalSize = originalSize)
+            }
+            "audio" -> {
+                val compressed = gzipCompress(file.readBytes())
+                CompressResult(compressed, "gzip", originalSize, compressed.size.toLong())
             }
             else -> {
                 val compressed = gzipCompress(file.readBytes())
