@@ -1,7 +1,9 @@
 package com.kascorp.webhooknotesender
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
+import android.os.LocaleList
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +16,7 @@ import com.kascorp.webhooknotesender.ui.settings.SettingsViewModel
 import com.kascorp.webhooknotesender.util.LocaleHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -27,8 +30,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        applyLocaleDirectly()
+        setContent {
+            AppNavigation()
+        }
 
-        // Observe language restart event
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 settingsViewModel.restartEvent.collect {
@@ -36,10 +43,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
 
-        enableEdgeToEdge()
-        setContent {
-            AppNavigation()
+    private fun applyLocaleDirectly() {
+        val lang = LocaleHelper.cachedLanguage
+        if (lang.isEmpty()) return
+        val locale = Locale.forLanguageTag(lang)
+        Locale.setDefault(locale)
+        try {
+            val config = Configuration(resources.configuration)
+            config.setLocales(LocaleList(locale))
+            resources.updateConfiguration(config, resources.displayMetrics)
+        } catch (_: Exception) {
         }
     }
 }

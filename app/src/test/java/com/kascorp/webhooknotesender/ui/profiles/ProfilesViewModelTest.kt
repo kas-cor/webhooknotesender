@@ -1,6 +1,7 @@
 package com.kascorp.webhooknotesender.ui.profiles
 
 import android.app.Application
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
@@ -83,6 +84,10 @@ class ProfilesViewModelTest {
         mediaCompressor = mockk(relaxed = true)
         shortcutHelper = mockk(relaxed = true)
         json = Json { ignoreUnknownKeys = true }
+
+        // Mock getString for validation resources (tests check content, not just null)
+        every { application.getString(R.string.url_http_warning) } returns "Using HTTP is not secure. Consider using HTTPS."
+        every { application.getString(R.string.name_already_exists) } returns "Name already exists"
 
         // Mock static objects
         mockkObject(PayloadFileHelper)

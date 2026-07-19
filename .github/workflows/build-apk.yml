@@ -44,6 +44,9 @@ jobs:
 
     - run: echo "sdk.dir=${ANDROID_HOME}" > local.properties
 
+    - name: Check hardcoded strings
+      run: ./gradlew checkHardcodedStrings 2>&1 | tail -20
+
     - name: Lint check
       run: ./gradlew lintDebug 2>&1 | tail -30
       continue-on-error: true

@@ -251,7 +251,7 @@ class ShortcutReceiverActivity : ComponentActivity() {
                 runOnUiThread {
                     val msg = if (profile.compressEnabled && compressedSize > 0 && compressedSize < originalSize) {
                         val saved = (100L - compressedSize * 100L / originalSize)
-                        "Compressed: ${formatSize(originalSize)} → ${formatSize(compressedSize)} ($saved% saved)"
+                        getString(R.string.compressed_format, formatSize(originalSize), formatSize(compressedSize), saved.toInt())
                     } else {
                         getString(R.string.added_to_queue)
                     }
@@ -269,9 +269,9 @@ class ShortcutReceiverActivity : ComponentActivity() {
 
     private fun formatSize(bytes: Long): String {
         return when {
-            bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
-            bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
-            else -> "$bytes B"
+            bytes >= 1_000_000 -> getString(R.string.size_mb, bytes / 1_000_000.0)
+            bytes >= 1_000 -> getString(R.string.size_kb, bytes / 1_000.0)
+            else -> getString(R.string.size_b, bytes)
         }
     }
 

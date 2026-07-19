@@ -1,10 +1,14 @@
 package com.kascorp.webhooknotesender.ui.settings
 
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kascorp.webhooknotesender.BuildConfig
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.model.ThemeMode
 import io.mockk.every
 import io.mockk.mockk
@@ -38,59 +42,91 @@ class SettingsScreenTest {
         return vm
     }
 
+    // Helper: get context from inside the compose tree and use it for string lookups.
+    // We store it in a mutable ref so tests can access it after setContent.
+    private var ctx: Context? = null
+
+    private fun str(id: Int): String = ctx!!.getString(id)
+    private fun str(id: Int, vararg args: Any?): String = ctx!!.getString(id, *args)
+
     // ===================== Screen structure =====================
 
     @Test
     fun settingsScreen_displaysTitle() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.nav_settings)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysAppearanceSection() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Appearance").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.appearance)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysThemeOptions() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Light").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Dark").assertIsDisplayed()
-        composeTestRule.onNodeWithText("System").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_light)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.theme_dark)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.theme_system)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysLanguageSection() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Language").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.language)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysLanguageOptions() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("English").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Russian").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        // Click the language selector to expand the dropdown
+        composeTestRule.onNodeWithText(str(R.string.language_english)).performClick()
+        composeTestRule.onNodeWithText(str(R.string.language_english)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.language_russian)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysAboutSection() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("About").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.about)).assertIsDisplayed()
     }
 
     @Test
     fun settingsScreen_displaysAppNameAndVersion() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Webhook Note Sender").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Version 1.0.0").assertIsDisplayed()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.app_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            str(R.string.version_format, BuildConfig.VERSION_NAME)
+        ).assertIsDisplayed()
     }
 
     // ===================== Theme interactions =====================
@@ -98,34 +134,46 @@ class SettingsScreenTest {
     @Test
     fun clickingLight_callsSetThemeModeWithLight() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Light").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_light)).performClick()
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.LIGHT) }
     }
 
     @Test
     fun clickingDark_callsSetThemeModeWithDark() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Dark").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_dark)).performClick()
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.DARK) }
     }
 
     @Test
     fun clickingSystem_callsSetThemeModeWithSystem() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("System").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_system)).performClick()
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.SYSTEM) }
     }
 
     @Test
     fun clickingAllThemeOptions_callsAllThreeSetThemeModeVariants() {
         val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Light").performClick()
-        composeTestRule.onNodeWithText("Dark").performClick()
-        composeTestRule.onNodeWithText("System").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_light)).performClick()
+        composeTestRule.onNodeWithText(str(R.string.theme_dark)).performClick()
+        composeTestRule.onNodeWithText(str(R.string.theme_system)).performClick()
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.LIGHT) }
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.DARK) }
         verify(exactly = 1) { vm.setThemeMode(ThemeMode.SYSTEM) }
@@ -135,28 +183,31 @@ class SettingsScreenTest {
 
     @Test
     fun clickingEnglish_callsSetLanguageWithEn() {
-        val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("English").performClick()
-        verify(exactly = 1) { vm.setLanguage("en") }
+        // Start with Russian so "English" appears only in the dropdown after expanding
+        val vm = createViewModel(language = "ru")
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        // Click the Russian button to expand the dropdown
+        composeTestRule.onNodeWithText(str(R.string.language_russian)).performClick()
+        // Click English in the dropdown
+        composeTestRule.onNodeWithText(str(R.string.language_english)).performClick()
+        verify(atLeast = 1) { vm.setLanguage("en") }
     }
 
     @Test
     fun clickingRussian_callsSetLanguageWithRu() {
-        val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Russian").performClick()
-        verify(exactly = 1) { vm.setLanguage("ru") }
-    }
-
-    @Test
-    fun clickingBothLanguageOptions_callsBothSetLanguageVariants() {
-        val vm = createViewModel()
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("English").performClick()
-        composeTestRule.onNodeWithText("Russian").performClick()
-        verify(exactly = 1) { vm.setLanguage("en") }
-        verify(exactly = 1) { vm.setLanguage("ru") }
+        val vm = createViewModel(language = "en")
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        // Click the English button to expand the dropdown
+        composeTestRule.onNodeWithText(str(R.string.language_english)).performClick()
+        // Click Russian in the dropdown
+        composeTestRule.onNodeWithText(str(R.string.language_russian)).performClick()
+        verify(atLeast = 1) { vm.setLanguage("ru") }
     }
 
     // ===================== Visual state =====================
@@ -164,36 +215,24 @@ class SettingsScreenTest {
     @Test
     fun systemThemeOption_displaysAndClickable_whenThemeIsSystem() {
         val vm = createViewModel(theme = ThemeMode.SYSTEM)
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("System").assertIsDisplayed()
-        composeTestRule.onNodeWithText("System").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_system)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.theme_system)).performClick()
         verify(atLeast = 1) { vm.setThemeMode(ThemeMode.SYSTEM) }
     }
 
     @Test
     fun darkThemeOption_displaysAndClickable_whenThemeIsDark() {
         val vm = createViewModel(theme = ThemeMode.DARK)
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Dark").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Dark").performClick()
+        composeTestRule.setContent {
+            ctx = LocalContext.current
+            SettingsScreen(viewModel = vm)
+        }
+        composeTestRule.onNodeWithText(str(R.string.theme_dark)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.theme_dark)).performClick()
         verify(atLeast = 1) { vm.setThemeMode(ThemeMode.DARK) }
-    }
-
-    @Test
-    fun englishLanguageOption_displaysAndClickable_whenLanguageIsEn() {
-        val vm = createViewModel(language = "en")
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("English").assertIsDisplayed()
-        composeTestRule.onNodeWithText("English").performClick()
-        verify(atLeast = 1) { vm.setLanguage("en") }
-    }
-
-    @Test
-    fun russianLanguageOption_displaysAndClickable_whenLanguageIsRu() {
-        val vm = createViewModel(language = "ru")
-        composeTestRule.setContent { SettingsScreen(viewModel = vm) }
-        composeTestRule.onNodeWithText("Russian").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Russian").performClick()
-        verify(atLeast = 1) { vm.setLanguage("ru") }
     }
 }

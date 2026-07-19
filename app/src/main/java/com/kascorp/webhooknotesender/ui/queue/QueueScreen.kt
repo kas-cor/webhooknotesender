@@ -1,12 +1,18 @@
 package com.kascorp.webhooknotesender.ui.queue
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +46,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -55,9 +62,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.ui.theme.DarkStatusFailed
 import com.kascorp.webhooknotesender.ui.theme.DarkStatusPending
 import com.kascorp.webhooknotesender.ui.theme.DarkStatusSending
@@ -108,14 +118,14 @@ fun QueueScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
+                    Text(
+                        text = stringResource(R.string.nav_queue),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    AnimatedVisibility(visible = pendingCount > 0) {
                         Text(
-                            text = "Queue",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        AnimatedVisibility(visible = pendingCount > 0) {
-                            Text(
-                                text = "$pendingCount pending",
+                            text = stringResource(R.string.pending_count, pendingCount),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = StatusPending,
                                 fontWeight = FontWeight.Medium
@@ -134,7 +144,7 @@ fun QueueScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Clear All")
+                                Text(stringResource(R.string.clear_all))
                             }
                         }
                         if (items.any { it.status == QueueStatus.FAILED.name }) {
@@ -148,7 +158,7 @@ fun QueueScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Retry All")
+                                Text(stringResource(R.string.retry_all))
                             }
                         }
                     }
@@ -205,14 +215,14 @@ private fun EmptyQueueContent(modifier: Modifier = Modifier) {
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Queue is empty",
+            text = stringResource(R.string.queue_empty),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Captured media will appear here\nand be sent automatically",
+            text = stringResource(R.string.queue_empty_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
@@ -259,7 +269,7 @@ fun SwipeableQueueItem(
             ) {
                 Icon(
                     Icons.Filled.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.cd_delete),
                     tint = MaterialTheme.colorScheme.onError,
                     modifier = Modifier.size(28.dp)
                 )
@@ -284,41 +294,43 @@ fun QueueItemCard(
 
     val statusIcon: ImageVector
     val statusColor: Color
-    val statusLabel: String
+    val statusLabelRes: Int
     val statusBgColor: Color
 
     when (item.status) {
         QueueStatus.PENDING.name -> {
             statusIcon = Icons.Filled.HourglassEmpty
             statusColor = pendingColor
-            statusLabel = "Pending"
-            statusBgColor = pendingColor.copy(alpha = 0.12f)
+            statusLabelRes = R.string.status_pending
+            statusBgColor = pendingColor.copy(alpha = 0.15f)
         }
         QueueStatus.SENDING.name -> {
             statusIcon = Icons.Filled.Send
             statusColor = sendingColor
-            statusLabel = "Sending..."
-            statusBgColor = sendingColor.copy(alpha = 0.12f)
+            statusLabelRes = R.string.status_sending
+            statusBgColor = sendingColor.copy(alpha = 0.15f)
         }
         QueueStatus.SENT.name -> {
             statusIcon = Icons.Filled.CheckCircle
             statusColor = sentColor
-            statusLabel = "Sent"
-            statusBgColor = sentColor.copy(alpha = 0.12f)
+            statusLabelRes = R.string.status_sent
+            statusBgColor = sentColor.copy(alpha = 0.15f)
         }
         QueueStatus.FAILED.name -> {
             statusIcon = Icons.Filled.Error
             statusColor = failedColor
-            statusLabel = "Failed"
-            statusBgColor = failedColor.copy(alpha = 0.12f)
+            statusLabelRes = R.string.status_failed
+            statusBgColor = failedColor.copy(alpha = 0.15f)
         }
         else -> {
             statusIcon = Icons.Filled.HourglassEmpty
             statusColor = Color.Gray
-            statusLabel = item.status
-            statusBgColor = Color.Gray.copy(alpha = 0.12f)
+            statusLabelRes = R.string.status_pending
+            statusBgColor = Color.Gray.copy(alpha = 0.15f)
         }
     }
+
+    val statusLabel = stringResource(statusLabelRes)
 
     val typeIcon = when (item.mediaType.lowercase()) {
         "audio" -> Icons.Filled.Mic
@@ -341,142 +353,193 @@ fun QueueItemCard(
         label = "cardScale"
     )
 
+    // Pulsing animation for active states
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+    val isAnimated = item.status in listOf(
+        QueueStatus.PENDING.name,
+        QueueStatus.SENDING.name
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale),
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
-        Row(
+        // Status-colored top strip
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left: type icon with colored background
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = statusBgColor
+                .height(3.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(statusColor, statusColor.copy(alpha = 0.3f))
+                    )
+                )
+        )
+
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = typeIcon,
-                        contentDescription = null,
-                        tint = statusColor,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Center: info
-            Column(modifier = Modifier.weight(1f)) {
-                // Profile name + status chip
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = item.profileName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    // Status badge
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = statusBgColor
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = statusIcon,
-                                contentDescription = null,
-                                tint = statusColor,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = statusLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = statusColor,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Date and attempts
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = dateFormat.format(Date(item.createdAt)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                    if (item.attempts > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = "${item.attempts} attempts",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Error message
-                AnimatedVisibility(
-                    visible = item.lastError != null,
-                    enter = fadeIn(animationSpec = tween(300)) + slideInVertically { it / 2 }
-                ) {
-                    Text(
-                        text = item.lastError ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = StatusFailed,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Right: retry button
-            if (item.status == QueueStatus.FAILED.name) {
+                // Left: type icon with colored background
                 Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = statusBgColor
                 ) {
-                    IconButton(
-                        onClick = onRetry,
-                        modifier = Modifier.size(40.dp)
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = "Retry",
-                            tint = MaterialTheme.colorScheme.primary,
+                            imageVector = typeIcon,
+                            contentDescription = null,
+                            tint = statusColor,
                             modifier = Modifier.size(20.dp)
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Center: info
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = item.profileName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        // Animated status badge
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isAnimated) statusColor.copy(alpha = 0.15f) else statusBgColor
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = statusIcon,
+                                    contentDescription = null,
+                                    tint = statusColor.copy(
+                                        alpha = if (isAnimated) pulseAlpha else 1f
+                                    ),
+                                    modifier = Modifier
+                                        .size(11.dp)
+                                        .graphicsLayer {
+                                            if (isAnimated) {
+                                                scaleX = pulseAlpha
+                                                scaleY = pulseAlpha
+                                            }
+                                        }
+                                )
+                                Text(
+                                    text = statusLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = statusColor.copy(
+                                        alpha = if (isAnimated) pulseAlpha else 1f
+                                    ),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = dateFormat.format(Date(item.createdAt)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        if (item.attempts > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.attempts, item.attempts),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Progress bar for sending items
+                    if (item.status == QueueStatus.SENDING.name) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = sendingColor,
+                            trackColor = sendingColor.copy(alpha = 0.12f)
+                        )
+                    }
+
+                    // Error message
+                    AnimatedVisibility(
+                        visible = item.lastError != null,
+                        enter = fadeIn(animationSpec = tween(300)) + slideInVertically { it / 2 }
+                    ) {
+                        Text(
+                            text = item.lastError ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = StatusFailed,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Right: retry button
+                if (item.status == QueueStatus.FAILED.name) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    ) {
+                        IconButton(
+                            onClick = onRetry,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.cd_retry),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

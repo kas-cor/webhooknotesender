@@ -401,12 +401,52 @@ Accept: application/json
 - UI uses `Snackbar` or `Toast` for user-facing errors
 - Worker cleanup: orphaned payload files removed on each `doWork()` run
 
-### Resources
+### Resources / Localization (для ИИ-агентов)
 - **English**: `res/values/strings.xml`
 - **Russian**: `res/values-ru/strings.xml`
-- All strings use `stringResource()` in Compose
-- No hardcoded strings in Kotlin code
-- Format placeholders (`%1$s`, `%2$d`) must match between locales
+- **НИКАКИХ хардкодных строк** в Kotlin-коде. Все пользовательские строки — только через `stringResource()` / `getString()`.
+
+#### Какое API использовать:
+| Контекст | API |
+|---|---|
+| `@Composable` функция | `stringResource(R.string.xxx)` |
+| `Activity` / `Service` | `getString(R.string.xxx)` |
+| `ViewModel` (есть `Application`) | `application.getString(R.string.xxx)` |
+| `Toast.makeText(context, ..., ...)` | `context.getString(R.string.xxx)` |
+
+#### Правила для ИИ-агентов:
+1. **Никогда** не пиши `"Some string"` напрямую в Kotlin-коде, если это видит пользователь.
+2. **Форматные строки** используй с `%1$s`, `%2$d` и т.д. — оба локализационных файла должны иметь одинаковые плейсхолдеры.
+3. **Content descriptions** для иконок — тоже строковые ресурсы, помечай `translatable="false"`.
+4. **Новые строки** добавляй сразу в **оба** файла: `values/strings.xml` + `values-ru/strings.xml`.
+5. **Изменяя существующую строку** — обновляй оба перевода.
+6. **В тестах**, где `application` — mock, обязательно мокай `application.getString(R.string.xxx)` для тех ресурсов, чьё содержимое проверяется (не только `!= null`).
+
+#### Примеры
+
+✅ Правильно:
+```kotlin
+// В Compose:
+Text(stringResource(R.string.your_profiles))
+Icon(contentDescription = stringResource(R.string.cd_capture_format, mediaType))
+
+// В Activity:
+Toast.makeText(this, getString(R.string.added_to_queue), Toast.LENGTH_SHORT).show()
+
+// В ViewModel:
+application.getString(R.string.name_required)
+
+// В тесте:
+every { application.getString(R.string.url_http_warning) } returns "Using HTTP is not secure. Consider using HTTPS."
+```
+
+❌ Неправильно:
+```kotlin
+Text("Your Profiles")                 // хардкод
+Toast.makeText(this, "Added", ...)     // хардкод
+application.getString("Name required") // не через R
+contentDescription = "Queue"           // хардкод
+```
 
 ---
 
@@ -436,6 +476,32 @@ Accept: application/json
 | `MediaCompressorTest.kt` | Image JPEG compression, gzip roundtrip, quality levels |
 | `LocaleHelperTest.kt` | Locale persistence and resolution |
 | `QueueWorkerTest.kt` | Worker dispatch, status updates, retry logic |
+
+#### Паттерн для UI-тестов (androidTest)
+
+В `SettingsScreenTest` используется паттерн для получения строк из ресурсов без хардкода:
+
+```kotlin
+private var ctx: Context? = null
+
+private fun str(id: Int): String = ctx!!.getString(id)
+private fun str(id: Int, vararg args: Any?): String = ctx!!.getString(id, *args)
+
+@Test
+fun example() {
+    composeTestRule.setContent {
+        ctx = LocalContext.current  // сохраняем контекст для str()
+        SettingsScreen(viewModel = vm)
+    }
+    composeTestRule.onNodeWithText(str(R.string.nav_settings)).assertIsDisplayed()
+}
+```
+
+Правила:
+- `ctx` присваивается внутри `setContent { }` через `LocalContext.current`
+- `str()` использует `ctx!!.getString()` — безопасно, т.к. `setContent` выполняется синхронно
+- Все `onNodeWithText("...")` заменяются на `onNodeWithText(str(R.string.xxx))`
+- Для тестов дропдаунов: стартуй с другого языка, чтобы избежать дублирования текста
 
 ---
 

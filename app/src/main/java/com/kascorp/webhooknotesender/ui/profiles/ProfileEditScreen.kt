@@ -72,7 +72,7 @@ fun ProfileEditScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (editState.isEditing) "Edit Profile" else "Create Profile",
+                        if (editState.isEditing) stringResource(R.string.edit_profile) else stringResource(R.string.create_profile),
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
@@ -80,7 +80,7 @@ fun ProfileEditScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.cd_back)
                         )
                     }
                 },
@@ -104,8 +104,8 @@ fun ProfileEditScreen(
             OutlinedTextField(
                 value = formState.name,
                 onValueChange = { viewModel.updateName(it) },
-                label = { Text("Name") },
-                placeholder = { Text("e.g., Office Camera") },
+                label = { Text(stringResource(R.string.profile_name)) },
+                placeholder = { Text(stringResource(R.string.name_placeholder)) },
                 isError = formState.nameError != null,
                 supportingText = formState.nameError?.let { { Text(it) } },
                 singleLine = true,
@@ -127,8 +127,8 @@ fun ProfileEditScreen(
             OutlinedTextField(
                 value = formState.prompt,
                 onValueChange = { viewModel.updatePrompt(it) },
-                label = { Text("Prompt") },
-                placeholder = { Text("Describe what the AI should do with this media...") },
+                label = { Text(stringResource(R.string.profile_prompt)) },
+                placeholder = { Text(stringResource(R.string.prompt_placeholder)) },
                 isError = formState.promptError != null,
                 supportingText = formState.promptError?.let { { Text(it) } },
                 minLines = 3,
@@ -143,8 +143,8 @@ fun ProfileEditScreen(
             OutlinedTextField(
                 value = formState.url,
                 onValueChange = { viewModel.updateUrl(it) },
-                label = { Text("Webhook URL") },
-                placeholder = { Text("https://your-webhook.com/endpoint") },
+                label = { Text(stringResource(R.string.webhook_url)) },
+                placeholder = { Text(stringResource(R.string.url_placeholder)) },
                 isError = formState.urlError != null,
                 supportingText = {
                     formState.urlError?.let {
@@ -167,8 +167,8 @@ fun ProfileEditScreen(
             OutlinedTextField(
                 value = formState.bearerToken,
                 onValueChange = { viewModel.updateBearerToken(it) },
-                label = { Text("Bearer Token (optional)") },
-                placeholder = { Text("sk-...") },
+                label = { Text(stringResource(R.string.bearer_token_optional)) },
+                placeholder = { Text(stringResource(R.string.token_placeholder)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -252,7 +252,7 @@ fun ProfileEditScreen(
                     )
                 } else {
                     Text(
-                        text = if (editState.isEditing) "Update Profile" else "Create Profile",
+                        text = if (editState.isEditing) stringResource(R.string.update_profile) else stringResource(R.string.create_profile),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -271,9 +271,9 @@ private fun TypeDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val types = listOf(
-        "image" to "Image" to Icons.Filled.CameraAlt,
-        "audio" to "Audio" to Icons.Filled.Mic,
-        "video" to "Video" to Icons.Filled.Videocam
+        "image" to stringResource(R.string.image_type) to Icons.Filled.CameraAlt,
+        "audio" to stringResource(R.string.audio_type) to Icons.Filled.Mic,
+        "video" to stringResource(R.string.video_type) to Icons.Filled.Videocam
     )
 
     ExposedDropdownMenuBox(
@@ -284,7 +284,7 @@ private fun TypeDropdown(
             value = types.find { it.first.first == selectedType }?.let { "${it.first.second}" } ?: selectedType,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Type") },
+            label = { Text(stringResource(R.string.profile_type)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()

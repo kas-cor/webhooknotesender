@@ -3,12 +3,14 @@ package com.kascorp.webhooknotesender.ui.profiles
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
-import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
+import com.kascorp.webhooknotesender.data.model.MediaType
+import com.kascorp.webhooknotesender.data.model.QueueStatus
 import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
+import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
 import com.kascorp.webhooknotesender.util.MediaCompressor
@@ -135,21 +137,21 @@ class ProfilesViewModel @Inject constructor(
         var hasError = false
 
         val nameError = when {
-            state.name.isBlank() -> { hasError = true; "Name is required" }
-            state.name.length < 2 -> { hasError = true; "Name must be at least 2 characters" }
+            state.name.isBlank() -> { hasError = true; application.getString(R.string.name_required) }
+            state.name.length < 2 -> { hasError = true; application.getString(R.string.name_min_length) }
             else -> null
         }
 
         val promptError = when {
-            state.prompt.isBlank() -> { hasError = true; "Prompt is required" }
+            state.prompt.isBlank() -> { hasError = true; application.getString(R.string.prompt_required) }
             else -> null
         }
 
         val urlError = when {
-            state.url.isBlank() -> { hasError = true; "URL is required" }
+            state.url.isBlank() -> { hasError = true; application.getString(R.string.url_required) }
             !state.url.startsWith("http://") && !state.url.startsWith("https://") ->
-                { hasError = true; "URL must start with http:// or https://" }
-            state.url.startsWith("http://") -> "Using HTTP is not secure. Consider using HTTPS."
+                { hasError = true; application.getString(R.string.url_invalid) }
+            state.url.startsWith("http://") -> application.getString(R.string.url_http_warning)
             else -> null
         }
 
@@ -202,7 +204,7 @@ class ProfilesViewModel @Inject constructor(
                 onSuccess()
             } catch (e: Exception) {
                 _formState.value = _formState.value.copy(
-                    nameError = if (e.message?.contains("UNIQUE") == true) "Name already exists" else null,
+                    nameError = if (e.message?.contains("UNIQUE") == true) application.getString(R.string.name_already_exists) else null,
                     isSaving = false
                 )
             }
@@ -329,13 +331,16 @@ class ProfilesViewModel @Inject constructor(
 
                 _formState.value = _formState.value.copy(
                     isTesting = false,
-                    testResult = if (response.isSuccessful) "Test successful: HTTP ${response.code}"
-                    else "Test failed: HTTP ${response.code}"
+                    testResult = if (response.isSuccessful) {
+                        application.getString(R.string.test_success_format, response.code)
+                    } else {
+                        application.getString(R.string.test_send_failed, "HTTP ${response.code}")
+                    }
                 )
             } catch (e: Exception) {
                 _formState.value = _formState.value.copy(
                     isTesting = false,
-                    testResult = "Test failed: ${e.message}"
+                    testResult = application.getString(R.string.test_send_failed, e.message ?: "Unknown")
                 )
             }
         }

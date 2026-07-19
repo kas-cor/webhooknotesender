@@ -6,8 +6,15 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +38,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shortcut
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Shortcut
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,13 +62,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import java.io.File
 
@@ -86,9 +100,9 @@ fun ProfilesScreen(
 
     fun formatSize(bytes: Long): String {
         return when {
-            bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
-            bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
-            else -> "$bytes B"
+            bytes >= 1_000_000 -> context.getString(R.string.size_mb, bytes / 1_000_000.0)
+            bytes >= 1_000 -> context.getString(R.string.size_kb, bytes / 1_000.0)
+            else -> context.getString(R.string.size_b, bytes)
         }
     }
 
@@ -115,13 +129,13 @@ fun ProfilesScreen(
             val r = result
             val msg = if (r != null && profile.compressEnabled && r.compressedSize > 0 && r.compressedSize < r.originalSize) {
                 val saved = (100L - r.compressedSize * 100L / r.originalSize)
-                "Compressed: ${formatSize(r.originalSize)} → ${formatSize(r.compressedSize)} (${saved}% saved)"
+                context.getString(R.string.compressed_format, formatSize(r.originalSize), formatSize(r.compressedSize), saved.toInt())
             } else {
-                "Added to queue"
+                context.getString(R.string.added_to_queue)
             }
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         } else {
-            Toast.makeText(context, "Capture cancelled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.capture_cancelled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -148,13 +162,13 @@ fun ProfilesScreen(
             val r = result
             val msg = if (r != null && profile.compressEnabled && r.compressedSize > 0 && r.compressedSize < r.originalSize) {
                 val saved = (100L - r.compressedSize * 100L / r.originalSize)
-                "Compressed: ${formatSize(r.originalSize)} → ${formatSize(r.compressedSize)} (${saved}% saved)"
+                context.getString(R.string.compressed_format, formatSize(r.originalSize), formatSize(r.compressedSize), saved.toInt())
             } else {
-                "Added to queue"
+                context.getString(R.string.added_to_queue)
             }
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         } else {
-            Toast.makeText(context, "Capture cancelled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.capture_cancelled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -174,7 +188,7 @@ fun ProfilesScreen(
             }
         } else {
             pendingCaptureProfile = null
-            Toast.makeText(context, "Camera permission required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.permission_required, "Camera"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -193,7 +207,7 @@ fun ProfilesScreen(
                 profile.bearerToken
             )
         } else {
-            Toast.makeText(context, "Microphone permission required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.permission_required, "Microphone"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -204,7 +218,7 @@ fun ProfilesScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Create profile")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_profile))
             }
         }
     ) { padding ->
@@ -225,7 +239,7 @@ fun ProfilesScreen(
             ) {
                 item {
                     Text(
-                        text = "Your Profiles",
+                        text = stringResource(R.string.your_profiles),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -289,28 +303,30 @@ private fun EmptyProfilesContent(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Outlined.CameraAlt,
+            imageVector = Icons.Outlined.Person,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No profiles yet",
+            text = stringResource(R.string.no_profiles_title),
             style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Create a profile to start sending media to webhooks",
+            text = stringResource(R.string.no_profiles_description),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(24.dp))
         TextButton(onClick = onCreateProfile) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Create Profile")
+            Text(stringResource(R.string.create_profile))
         }
     }
 }
@@ -326,6 +342,8 @@ fun ProfileCard(
     hasShortcut: Boolean
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
     val typeIcon = when (profile.type.lowercase()) {
         "audio" -> Icons.Filled.Mic
@@ -333,46 +351,84 @@ fun ProfileCard(
         else -> Icons.Filled.CameraAlt
     }
 
-    val typeLabel = when (profile.type.lowercase()) {
-        "audio" -> "Audio"
-        "video" -> "Video"
-        else -> "Image"
+    val typeLabelRes = when (profile.type.lowercase()) {
+        "audio" -> R.string.audio_type
+        "video" -> R.string.video_type
+        else -> R.string.image_type
     }
+
+    val (cardAccentColor, cardGradient) = when (profile.type.lowercase()) {
+        "audio" -> Color(0xFF7C4DFF) to listOf(Color(0xFF7C4DFF), Color(0xFFB388FF))
+        "video" -> Color(0xFF00C853) to listOf(Color(0xFF00C853), Color(0xFF69F0AE))
+        else -> Color(0xFF448AFF) to listOf(Color(0xFF448AFF), Color(0xFF82B1FF))
+    }
+
+    val cardElevation by animateDpAsState(
+        targetValue = if (isPressed) 8.dp else 3.dp,
+        animationSpec = tween(150),
+        label = "cardElevation"
+    )
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(100),
+        label = "cardScale"
+    )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .scale(cardScale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                onCapture()
+            }
             .combinedClickable(
-                onClick = onCapture,
-                onLongClick = { showMenu = true }
+                onLongClick = { showMenu = true },
+                onClick = {}
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = cardElevation)
     ) {
+        // Colorful top strip
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .background(
+                    brush = Brush.horizontalGradient(cardGradient)
+                )
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Colorful icon circle
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape),
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.horizontalGradient(cardGradient)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = typeIcon,
-                    contentDescription = typeLabel,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    contentDescription = stringResource(typeLabelRes),
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -382,35 +438,63 @@ fun ProfileCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = typeLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    // Type chip
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(cardAccentColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = stringResource(typeLabelRes),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cardAccentColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     if (hasShortcut) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Filled.Shortcut,
-                            contentDescription = "Has shortcut",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = stringResource(R.string.cd_has_shortcut),
+                            modifier = Modifier.size(14.dp),
+                            tint = cardAccentColor.copy(alpha = 0.7f)
                         )
                     }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.TouchApp,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.tap_to_capture),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
                 }
             }
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More options")
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.cd_more_options),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Edit") },
+                        text = { Text(stringResource(R.string.cd_edit)) },
                         onClick = {
                             showMenu = false
                             onEdit()
@@ -418,7 +502,7 @@ fun ProfileCard(
                         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text(if (hasShortcut) "Remove Shortcut" else "Create Shortcut") },
+                        text = { Text(if (hasShortcut) stringResource(R.string.remove_shortcut) else stringResource(R.string.create_shortcut)) },
                         onClick = {
                             showMenu = false
                             onCreateShortcut()
@@ -431,7 +515,7 @@ fun ProfileCard(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        text = { Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             showMenu = false
                             onDelete()

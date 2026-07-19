@@ -75,6 +75,84 @@ android {
     }
 }
 
+// ──────────────────────────────────────────────
+// Task: проверка хардкодных строк в Kotlin-коде
+// ──────────────────────────────────────────────
+
+abstract class HardcodedStringsCheckTask : DefaultTask() {
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceDir: DirectoryProperty
+
+    @TaskAction
+    fun check() {
+        val dir = sourceDir.get().asFile
+        if (!dir.exists()) {
+            logger.warn("Source directory not found: $dir")
+            return
+        }
+
+        val violations = mutableListOf<String>()
+
+        val contentDescPattern = Regex("""contentDescription\s*=\s*"([^"]+)"""")
+        val toastPattern = Regex("""Toast\.makeText\([^,]+,\s*"([^"]+)"""")
+        val notificationPattern = Regex("""setContent(Text|Title)\(\s*"([^"]+)"\s*\)""")
+
+        dir.walkTopDown()
+            .filter { it.extension == "kt" }
+            .forEach { file ->
+                val relativePath = dir.toPath().relativize(file.toPath()).toString()
+                val lines = file.readLines()
+
+                lines.forEachIndexed { lineIndex, line ->
+                    val lineNum = lineIndex + 1
+
+                    contentDescPattern.findAll(line).forEach { match ->
+                        val captured = match.groupValues[1]
+                        if (captured.isNotEmpty() && !captured.startsWith("\$") && !captured.startsWith("{")) {
+                            violations.add("$relativePath:$lineNum: contentDescription хардкод: \"$captured\" → stringResource(R.string.xxx)")
+                        }
+                    }
+
+                    toastPattern.findAll(line).forEach { match ->
+                        val captured = match.groupValues[1]
+                        if (captured.isNotEmpty() && !captured.startsWith("\$") && !captured.startsWith("{")) {
+                            violations.add("$relativePath:$lineNum: Toast хардкод: \"$captured\" → context.getString(R.string.xxx)")
+                        }
+                    }
+
+                    notificationPattern.findAll(line).forEach { match ->
+                        val captured = match.groupValues[2]
+                        if (captured.isNotEmpty() && !captured.startsWith("\$") && !captured.startsWith("{")) {
+                            violations.add("$relativePath:$lineNum: setContent${match.groupValues[1]} хардкод: \"$captured\" → getString(R.string.xxx)")
+                        }
+                    }
+                }
+            }
+
+        if (violations.isNotEmpty()) {
+            logger.error("Найдены хардкодные строки в коде! Все строки для пользователя должны быть в strings.xml")
+            violations.forEach { logger.error("  > $it") }
+            throw GradleException("Найдено ${violations.size} хардкодных строк. Исправь их перед коммитом.")
+        } else {
+            logger.lifecycle("✅ Хардкодные строки не найдены. Молодцы!")
+        }
+    }
+}
+
+tasks.register<HardcodedStringsCheckTask>("checkHardcodedStrings") {
+    description = "Scans Kotlin source files for hardcoded user-facing strings"
+    group = "verification"
+    sourceDir.set(layout.projectDirectory.dir("src/main/java"))
+}
+
+// Подключаем к стандартной проверке
+val checkTask = tasks.findByName("check")
+if (checkTask != null) {
+    checkTask.dependsOn("checkHardcodedStrings")
+}
+
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)

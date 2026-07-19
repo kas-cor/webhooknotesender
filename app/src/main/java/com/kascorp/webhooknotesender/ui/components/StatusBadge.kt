@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.ui.theme.StatusFailed
 import com.kascorp.webhooknotesender.ui.theme.StatusPending
 import com.kascorp.webhooknotesender.ui.theme.StatusSending
@@ -35,13 +37,14 @@ fun StatusBadge(
         else -> Color.Gray
     }
 
-    val statusLabel = when (status) {
-        "PENDING" -> "Pending"
-        "SENDING" -> "Sending"
-        "SENT" -> "Sent"
-        "FAILED" -> "Failed"
-        else -> status
+    val statusLabelRes = when (status) {
+        "PENDING" -> R.string.status_pending
+        "SENDING" -> R.string.status_sending
+        "SENT" -> R.string.status_sent
+        "FAILED" -> R.string.status_failed
+        else -> null
     }
+    val statusLabel = statusLabelRes?.let { stringResource(it) } ?: status
 
     Row(
         modifier = modifier

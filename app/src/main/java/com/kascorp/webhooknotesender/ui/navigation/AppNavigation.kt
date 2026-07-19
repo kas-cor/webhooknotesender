@@ -5,24 +5,31 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Queue
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Queue
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import android.net.Uri
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,9 +39,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -44,6 +57,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.ui.audio.AudioRecordingScreen
 import com.kascorp.webhooknotesender.ui.profiles.ProfileEditScreen
 import com.kascorp.webhooknotesender.ui.profiles.ProfilesScreen
@@ -54,10 +68,10 @@ import com.kascorp.webhooknotesender.ui.settings.SettingsScreen
 import com.kascorp.webhooknotesender.ui.settings.SettingsViewModel
 import com.kascorp.webhooknotesender.ui.theme.WebhookNoteSenderTheme
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    data object Profiles : Screen("profiles", "Profiles", Icons.Outlined.CameraAlt, Icons.Filled.CameraAlt)
-    data object Queue : Screen("queue", "Queue", Icons.Outlined.Queue, Icons.Filled.Queue)
-    data object Settings : Screen("settings", "Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
+sealed class Screen(val route: String, @StringRes val titleRes: Int, val icon: ImageVector, val selectedIcon: ImageVector) {
+    data object Profiles : Screen("profiles", R.string.nav_profiles, Icons.Outlined.Person, Icons.Filled.Person)
+    data object Queue : Screen("queue", R.string.nav_queue, Icons.Outlined.Queue, Icons.Filled.Queue)
+    data object Settings : Screen("settings", R.string.nav_settings, Icons.Outlined.Settings, Icons.Filled.Settings)
 }
 
 sealed class DetailScreen(val route: String) {
@@ -110,6 +124,10 @@ private fun AppNavigationContent(
     var permissionsRequested by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
+    // Get queue pending count for badge
+    val queueViewModel: QueueViewModel = hiltViewModel()
+    val queuePendingCount by queueViewModel.pendingCount.collectAsState()
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
@@ -152,6 +170,20 @@ private fun AppNavigationContent(
                 ) {
                     screens.forEachIndexed { index, screen ->
                         val isSelected = currentRoute == screen.route
+                        val title = stringResource(screen.titleRes)
+
+                        // Animated values for icons
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.15f else 1f,
+                            animationSpec = tween(200),
+                            label = "iconScale"
+                        )
+                        val iconColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = tween(200),
+                            label = "iconColor"
+                        )
 
                         NavigationBarItem(
                             selected = isSelected,
@@ -168,16 +200,22 @@ private fun AppNavigationContent(
                                 }
                             },
                             icon = {
-                                if (screen is Screen.Queue) {
-                                    QueueIconWithBadge()
-                                } else {
-                                    Icon(
-                                        imageVector = if (isSelected) screen.selectedIcon else screen.icon,
-                                        contentDescription = screen.title
-                                    )
-                                }
+                                NavIconWithBadge(
+                                    screen = screen,
+                                    isSelected = isSelected,
+                                    iconScale = iconScale,
+                                    iconColor = iconColor,
+                                    badgeCount = if (screen is Screen.Queue) queuePendingCount else 0
+                                )
                             },
-                            label = { Text(screen.title) },
+                            label = {
+                                Text(
+                                    title,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontSize = if (isSelected) 13.sp else 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -273,10 +311,38 @@ private fun AppNavigationContent(
 }
 
 @Composable
-private fun QueueIconWithBadge() {
-    // Badge handled by the QueueScreen itself
-    Icon(
-        imageVector = Icons.Outlined.Queue,
-        contentDescription = "Queue"
-    )
+private fun NavIconWithBadge(
+    screen: Screen,
+    isSelected: Boolean,
+    iconScale: Float,
+    iconColor: Color,
+    badgeCount: Int
+) {
+    val icon = if (isSelected) screen.selectedIcon else screen.icon
+
+    BadgedBox(
+        badge = {
+            if (badgeCount > 0) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = stringResource(screen.titleRes),
+            tint = iconColor,
+            modifier = Modifier
+                .size(24.dp)
+                .scale(iconScale)
+        )
+    }
 }

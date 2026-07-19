@@ -64,9 +64,11 @@ class SettingsViewModel @Inject constructor(
             }
 
             val savedLanguage = dataStore.data.map { prefs ->
-                prefs[LANGUAGE_KEY] ?: "en"
+                prefs[LANGUAGE_KEY]
             }.first()
             _selectedLanguage.value = savedLanguage
+                ?: LocaleHelper.getSavedLanguage(context)
+                    .ifEmpty { "en" }
         }
     }
 
@@ -85,34 +87,25 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguage(language: String) {
         _selectedLanguage.value = language
-        // Save synchronously for LocaleHelper (attachBaseContext)
         LocaleHelper.saveLanguage(context, language)
 
-        // On API 33+, use the official LocaleManager API (most reliable on modern devices)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val localeManager = context.getSystemService(LocaleManager::class.java)
             if (localeManager != null) {
                 try {
                     localeManager.applicationLocales = LocaleList(Locale.forLanguageTag(language))
-                } catch (_: Exception) {
-                    // Some ROMs (e.g. MIUI) may not fully implement LocaleManager
-                }
+                } catch (_: Exception) { }
             }
         }
 
-        // Save to DataStore asynchronously (best-effort, doesn't block restart)
         viewModelScope.launch {
             try {
                 dataStore.edit { prefs ->
                     prefs[LANGUAGE_KEY] = language
                 }
-            } catch (_: Exception) {
-                // DataStore save is optional — locale is already persisted via SharedPreferences
-            }
+            } catch (_: Exception) { }
         }
 
-        // Signal the Activity to recreate with the new locale.
-        // Using a non-suspending trySend to avoid coroutine cancellation issues.
         _restartEvent.trySend(Unit)
     }
 }

@@ -1,7 +1,11 @@
 package com.kascorp.webhooknotesender
 
 import android.app.Application
+import android.app.LocaleManager
 import android.content.Context
+import android.os.Build
+import android.os.LocaleList
+import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ListenableWorker
@@ -9,8 +13,10 @@ import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.kascorp.webhooknotesender.data.remote.WebhookApi
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
+import com.kascorp.webhooknotesender.util.LocaleHelper
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.HiltAndroidApp
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -30,6 +36,11 @@ class WebhookNoteSenderApp : Application(), Configuration.Provider {
             .setWorkerFactory(ChainedWorkerFactory(hiltWorkerFactory, queueRepository, webhookApi))
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .build()
+
+    override fun attachBaseContext(base: Context) {
+        LocaleHelper.init(base)
+        super.attachBaseContext(LocaleHelper.wrapContext(base))
+    }
 
     override fun onCreate() {
         super.onCreate()
