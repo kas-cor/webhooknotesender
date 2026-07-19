@@ -47,4 +47,7 @@ interface QueueDao {
 
     @Query("DELETE FROM queue_items WHERE status = 'SENT'")
     suspend fun deleteSentItems()
+
+    @Query("SELECT payload_file_path FROM queue_items")
+    suspend fun getAllPayloadFilePaths(): List<String?>
 }

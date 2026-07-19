@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
+import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.util.NetworkMonitor
 import dagger.Module
 import dagger.Provides
@@ -71,6 +72,12 @@ object AppModule {
     @Singleton
     fun provideDateTimeUtils(): DateTimeUtils {
         return DateTimeUtils()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaCompressor(): MediaCompressor {
+        return MediaCompressor()
     }
 
     @Provides

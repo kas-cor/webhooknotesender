@@ -1,7 +1,6 @@
 package com.kascorp.webhooknotesender.work
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -10,19 +9,17 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
 import com.kascorp.webhooknotesender.data.remote.WebhookApi
 import com.kascorp.webhooknotesender.data.remote.WebhookException
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 
-@HiltWorker
-class QueueWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
+class QueueWorker(
+    appContext: Context,
+    workerParams: WorkerParameters,
     private val queueRepository: QueueRepository,
     private val webhookApi: WebhookApi
 ) : CoroutineWorker(appContext, workerParams) {
@@ -53,6 +50,8 @@ class QueueWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
+        queueRepository.cleanupOrphanedPayloads()
+
         val pendingItems = queueRepository.getPendingItems()
 
         if (pendingItems.isEmpty()) {
@@ -83,16 +82,23 @@ class QueueWorker @AssistedInject constructor(
             lastError = null
         )
 
+        // Load JSON payload from file if stored externally
+        val jsonPayload = if (item.payloadFilePath != null) {
+            PayloadFileHelper.loadPayload(applicationContext, item.payloadFilePath)
+                ?: item.jsonPayload
+        } else {
+            item.jsonPayload
+        }
+
         val sendResult = webhookApi.send(
             url = item.url,
-            jsonPayload = item.jsonPayload,
+            jsonPayload = jsonPayload,
             bearerToken = item.bearerToken
         )
 
         return sendResult.fold(
             onSuccess = {
-                // Success - mark as sent and delete
-                queueRepository.markAsSent(item.id)
+                // Success — delete from DB (also cleans up the payload file internally)
                 queueRepository.deleteById(item.id)
                 true // success, no retry needed
             },
@@ -104,7 +110,6 @@ class QueueWorker @AssistedInject constructor(
                 }
 
                 if (shouldRetry) {
-                    // Network error or server error - keep as PENDING for retry
                     queueRepository.updateStatus(
                         id = item.id,
                         status = QueueStatus.PENDING.name,
@@ -113,7 +118,10 @@ class QueueWorker @AssistedInject constructor(
                     )
                     false // needs retry
                 } else {
-                    // Client error (4xx except 408/429) - mark as FAILED, no retry
+                    // Clean up payload file — 4xx errors will never succeed
+                    if (item.payloadFilePath != null) {
+                        PayloadFileHelper.deletePayload(applicationContext, item.payloadFilePath)
+                    }
                     queueRepository.updateStatus(
                         id = item.id,
                         status = QueueStatus.FAILED.name,

@@ -62,11 +62,17 @@ val DarkOnSurfaceVariant = Color(0xFFC3C7CF)
 
 val DarkOutline = Color(0xFF8D9199)
 
-// Status colors
+// Status colors — light
 val StatusPending = Color(0xFFFFA726)
 val StatusSending = Color(0xFF42A5F5)
 val StatusSent = Color(0xFF66BB6A)
 val StatusFailed = Color(0xFFEF5350)
+
+// Status colors — dark (slightly muted for better night-time readability)
+val DarkStatusPending = Color(0xFFFFB74D)
+val DarkStatusSending = Color(0xFF64B5F6)
+val DarkStatusSent = Color(0xFF81C784)
+val DarkStatusFailed = Color(0xFFE57373)
 
 // Audio recording colors
 val RecordRed = Color(0xFFE53935)

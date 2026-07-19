@@ -48,6 +48,16 @@ jobs:
       run: ./gradlew lintDebug 2>&1 | tail -30
       continue-on-error: true
 
+    - name: Kotlin compile warnings (unused code, etc.)
+      run: |
+        OUTPUT=$(./gradlew compileDebugKotlin 2>&1)
+        UNUSED=$(echo "$OUTPUT" | grep -E "w:.*(unused|never used)" || true)
+        if [ -n "$UNUSED" ]; then
+          echo "Unused code warnings found:"
+          echo "$UNUSED"
+          exit 1
+        fi
+
 
   test:
     runs-on: ubuntu-latest

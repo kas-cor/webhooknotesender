@@ -65,9 +65,14 @@
     <string name="app_description">Отправляйте медиа на вебхуки ИИ-агентов</string>
 
     <!-- Audio Recording -->
+    <string name="audio_recording_title">Аудиозапись</string>
     <string name="start_recording">Начать запись</string>
     <string name="stop_recording">Остановить запись</string>
     <string name="recording">Запись…</string>
+    <string name="recording_paused">Пауза</string>
+    <string name="preparing">Подготовка…</string>
+    <string name="tap_play_to_continue">Нажмите play для продолжения</string>
+    <string name="tap_pause_to_pause">Нажмите паузу чтобы приостановить запись</string>
     <string name="audio_recording_started">Запись начата</string>
     <string name="audio_recording_stopped">Запись остановлена</string>
     <string name="tap_to_record">Нажмите для начала записи</string>
@@ -108,6 +113,12 @@
     <string name="test_send_failed">Тест не удался: %1$s</string>
     <string name="no_camera">Нет доступного приложения камеры</string>
 
+    <!-- Compression -->
+    <string name="compress">Сжатие</string>
+    <string name="compression_quality">Качество: %d%%</string>
+    <string name="compression_hint">Низкое качество = меньший размер</string>
+    <string name="gzip_hint">Уменьшает размер через сжатие gzip</string>
+
     <!-- Content descriptions -->
     <string name="cd_add_profile" translatable="false">Создать профиль</string>
     <string name="cd_capture" translatable="false">Захватить медиа</string>
@@ -117,4 +128,7 @@
     <string name="cd_delete" translatable="false">Удалить</string>
     <string name="cd_retry" translatable="false">Повторить</string>
     <string name="cd_shortcut" translatable="false">Ярлык</string>
+    <string name="cd_microphone" translatable="false">Микрофон</string>
+    <string name="cd_resume" translatable="false">Продолжить</string>
+    <string name="cd_pause" translatable="false">Пауза</string>
 </resources>

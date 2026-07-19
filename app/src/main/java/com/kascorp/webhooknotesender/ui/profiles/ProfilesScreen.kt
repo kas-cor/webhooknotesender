@@ -62,7 +62,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
-import com.kascorp.webhooknotesender.ui.components.AudioRecorderService
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -70,28 +69,57 @@ import java.io.File
 fun ProfilesScreen(
     viewModel: ProfilesViewModel = hiltViewModel(),
     onEditProfile: (Long) -> Unit = {},
-    onCreateProfile: () -> Unit = {}
+    onCreateProfile: () -> Unit = {},
+    onAudioCapture: (
+        profileId: Long,
+        profileName: String,
+        profilePrompt: String,
+        profileUrl: String,
+        bearerToken: String?
+    ) -> Unit = { _, _, _, _, _ -> }
 ) {
     val profiles by viewModel.profiles.collectAsState()
     val context = LocalContext.current
 
     var pendingCaptureProfile by remember { mutableStateOf<ProfileEntity?>(null) }
+    var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun formatSize(bytes: Long): String {
+        return when {
+            bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+            bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
+            else -> "$bytes B"
+        }
+    }
 
     val imageCaptureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         val profile = pendingCaptureProfile
+        val uri = pendingCaptureUri
         pendingCaptureProfile = null
-        if (success && profile != null) {
-            val file = File(context.cacheDir, "capture_${System.currentTimeMillis()}.jpg")
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        pendingCaptureUri = null
+        if (success && profile != null && uri != null) {
+            var result: ProfilesViewModel.CompressAndEncodeResult? = null
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val bytes = inputStream.readBytes()
-                val base64 = viewModel.base64Encoder.encode(bytes)
-                viewModel.enqueueCapturedMedia(profile, base64)
+                result = viewModel.compressAndEncode(profile, bytes)
+                viewModel.enqueueCapturedMedia(profile, result!!.base64, result.encoding)
             }
-            if (file.exists()) file.delete()
-            Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
+            // Clean up temp file from cache dir
+            val fileName = uri.lastPathSegment
+            if (fileName != null) {
+                val tempFile = File(context.cacheDir, fileName)
+                if (tempFile.exists()) tempFile.delete()
+            }
+            val r = result
+            val msg = if (r != null && profile.compressEnabled && r.compressedSize > 0 && r.compressedSize < r.originalSize) {
+                val saved = (100L - r.compressedSize * 100L / r.originalSize)
+                "Compressed: ${formatSize(r.originalSize)} → ${formatSize(r.compressedSize)} (${saved}% saved)"
+            } else {
+                "Added to queue"
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(context, "Capture cancelled", Toast.LENGTH_SHORT).show()
         }
@@ -101,19 +129,71 @@ fun ProfilesScreen(
         contract = ActivityResultContracts.CaptureVideo()
     ) { success ->
         val profile = pendingCaptureProfile
+        val uri = pendingCaptureUri
         pendingCaptureProfile = null
-        if (success && profile != null) {
-            val file = File(context.cacheDir, "capture_${System.currentTimeMillis()}.mp4")
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        pendingCaptureUri = null
+        if (success && profile != null && uri != null) {
+            var result: ProfilesViewModel.CompressAndEncodeResult? = null
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val bytes = inputStream.readBytes()
-                val base64 = viewModel.base64Encoder.encode(bytes)
-                viewModel.enqueueCapturedMedia(profile, base64)
+                result = viewModel.compressAndEncode(profile, bytes)
+                viewModel.enqueueCapturedMedia(profile, result!!.base64, result.encoding)
             }
-            if (file.exists()) file.delete()
-            Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
+            // Clean up temp file from cache dir
+            val fileName = uri.lastPathSegment
+            if (fileName != null) {
+                val tempFile = File(context.cacheDir, fileName)
+                if (tempFile.exists()) tempFile.delete()
+            }
+            val r = result
+            val msg = if (r != null && profile.compressEnabled && r.compressedSize > 0 && r.compressedSize < r.originalSize) {
+                val saved = (100L - r.compressedSize * 100L / r.originalSize)
+                "Compressed: ${formatSize(r.originalSize)} → ${formatSize(r.compressedSize)} (${saved}% saved)"
+            } else {
+                "Added to queue"
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(context, "Capture cancelled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val profile = pendingCaptureProfile
+        if (granted && profile != null) {
+            val type = profile.type.lowercase()
+            val file = File(context.cacheDir, "temp_capture_${System.currentTimeMillis()}.${if (type == "video") "mp4" else "jpg"}")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            pendingCaptureUri = uri
+            if (type == "video") {
+                videoCaptureLauncher.launch(uri)
+            } else {
+                imageCaptureLauncher.launch(uri)
+            }
+        } else {
+            pendingCaptureProfile = null
+            Toast.makeText(context, "Camera permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val profile = pendingCaptureProfile
+        pendingCaptureProfile = null
+        if (granted && profile != null) {
+            // Navigate to the new AudioRecordingScreen instead of starting the service directly
+            onAudioCapture(
+                profile.id,
+                profile.name,
+                profile.prompt,
+                profile.url,
+                profile.bearerToken
+            )
+        } else {
+            Toast.makeText(context, "Microphone permission required", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -164,32 +244,29 @@ fun ProfilesScreen(
                                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                                     == PackageManager.PERMISSION_GRANTED
                                 ) {
-                                    val intent = android.content.Intent(context, AudioRecorderService::class.java).apply {
-                                        putExtra("profile_id", profile.id)
-                                        putExtra("profile_name", profile.name)
-                                        putExtra("profile_prompt", profile.prompt)
-                                        putExtra("profile_url", profile.url)
-                                        putExtra("bearer_token", profile.bearerToken)
-                                        putExtra("profile_type", profile.type)
-                                        action = AudioRecorderService.ACTION_START_RECORDING
-                                    }
-                                    ContextCompat.startForegroundService(context, intent)
-                                    Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show()
+                                    onAudioCapture(
+                                        profile.id,
+                                        profile.name,
+                                        profile.prompt,
+                                        profile.url,
+                                        profile.bearerToken
+                                    )
                                 } else {
-                                    Toast.makeText(context, "Microphone permission required", Toast.LENGTH_SHORT).show()
+                                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
                                 == PackageManager.PERMISSION_GRANTED
                             ) {
                                 val file = File(context.cacheDir, "temp_capture_${System.currentTimeMillis()}.${if (type == "video") "mp4" else "jpg"}")
                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                pendingCaptureUri = uri
                                 if (type == "video") {
                                     videoCaptureLauncher.launch(uri)
                                 } else {
                                     imageCaptureLauncher.launch(uri)
                                 }
                             } else {
-                                Toast.makeText(context, "Camera permission required", Toast.LENGTH_SHORT).show()
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         },
                         onCreateShortcut = { viewModel.createShortcut(profile) },
@@ -322,23 +399,6 @@ fun ProfileCard(
                         )
                     }
                 }
-            }
-
-            IconButton(
-                onClick = onCapture,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-            ) {
-                Icon(
-                    imageVector = when (profile.type.lowercase()) {
-                        "audio" -> Icons.Filled.Mic
-                        "video" -> Icons.Filled.Videocam
-                        else -> Icons.Filled.CameraAlt
-                    },
-                    contentDescription = "Capture ${typeLabel.lowercase()}",
-                    tint = MaterialTheme.colorScheme.primary
-                )
             }
 
             Box {

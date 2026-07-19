@@ -26,5 +26,11 @@ data class ProfileEntity(
     val url: String,
 
     @ColumnInfo(name = "bearer_token")
-    val bearerToken: String? = null
+    val bearerToken: String? = null,
+
+    @ColumnInfo(name = "compress_enabled")
+    val compressEnabled: Boolean = true,
+
+    @ColumnInfo(name = "compression_quality")
+    val compressionQuality: Int = 70
 )

@@ -7,6 +7,9 @@ local.properties
 
 # IDE
 .idea/
+.project
+.settings/
+*.classpath
 *.swp
 *.swo
 *.swn

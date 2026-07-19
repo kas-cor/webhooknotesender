@@ -1,9 +1,11 @@
 package com.kascorp.webhooknotesender.util
 
 import android.util.Base64
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.util.Base64 as JdkBase64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,12 +13,13 @@ import javax.inject.Singleton
 class Base64Encoder @Inject constructor() {
 
     private companion object {
-        private const val CHUNK_SIZE = 8192 // 8KB chunks
+        /** Buffer size for streaming reads. */
+        private const val BUFFER_SIZE = 8192
     }
 
     /**
-     * Encodes a file to Base64 string using chunked reading.
-     * Uses streaming to avoid loading entire file into memory.
+     * Encodes a file to Base64 string using streaming.
+     * Avoids loading the entire file into memory at once.
      */
     fun encodeFile(file: File): String {
         return FileInputStream(file).use { inputStream ->
@@ -32,22 +35,18 @@ class Base64Encoder @Inject constructor() {
     }
 
     /**
-     * Encodes an input stream to Base64 string using chunked reading.
+     * Encodes an input stream to Base64 string using a true streaming
+     * Base64 encoder ([JdkBase64.getEncoder().wrap]). Unlike the naive
+     * chunk-and-concat approach, this correctly handles 3-byte boundaries
+     * across chunk boundaries, producing valid Base64 output regardless
+     * of input size.
      */
     private fun encodeStream(inputStream: InputStream): String {
-        val buffer = ByteArray(CHUNK_SIZE)
-        val result = StringBuilder()
-        var bytesRead: Int
-
-        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-            val chunk = if (bytesRead < CHUNK_SIZE) {
-                buffer.copyOf(bytesRead)
-            } else {
-                buffer.copyOf()
-            }
-            result.append(Base64.encodeToString(chunk, Base64.NO_WRAP))
+        ByteArrayOutputStream().use { outputStream ->
+            val encoder = JdkBase64.getEncoder().wrap(outputStream)
+            inputStream.copyTo(encoder, bufferSize = BUFFER_SIZE)
+            encoder.close()
+            return outputStream.toString("UTF-8")
         }
-
-        return result.toString()
     }
 }

@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.kascorp.webhooknotesender.data.local.AppDatabase
+import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
@@ -18,6 +19,7 @@ import com.kascorp.webhooknotesender.data.model.MediaType
 import com.kascorp.webhooknotesender.ui.components.AudioRecorderService
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
+import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +40,9 @@ class ShortcutReceiverActivity : ComponentActivity() {
 
     @Inject
     lateinit var base64Encoder: Base64Encoder
+
+    @Inject
+    lateinit var mediaCompressor: MediaCompressor
 
     @Inject
     lateinit var json: Json
@@ -201,33 +206,56 @@ class ShortcutReceiverActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val base64Data = base64Encoder.encodeFile(file)
-                val jsonPayload = buildJsonPayload(profile, base64Data)
+                val base64Data: String
+                val encoding: String?
+                var originalSize = 0L
+                var compressedSize = 0L
+                if (profile.compressEnabled) {
+                    val result = mediaCompressor.compressFile(file, profile.type, profile.compressionQuality)
+                    base64Data = base64Encoder.encode(result.data)
+                    encoding = result.encoding
+                    originalSize = result.originalSize
+                    compressedSize = result.compressedSize
+                } else {
+                    base64Data = base64Encoder.encodeFile(file)
+                    encoding = null
+                    originalSize = file.length()
+                    compressedSize = originalSize
+                }
+                val jsonPayload = buildJsonPayload(profile, base64Data, encoding)
 
                 // Delete temp file before inserting to queue
                 if (file.exists()) {
                     file.delete()
                 }
 
-                database.queueDao().insert(
-                    QueueItemEntity(
-                        profileName = profile.name,
-                        url = profile.url,
-                        bearerToken = profile.bearerToken,
-                        jsonPayload = jsonPayload,
-                        mediaType = profile.type,
-                        status = QueueStatus.PENDING.name,
-                        attempts = 0,
-                        lastError = null,
-                        createdAt = System.currentTimeMillis()
-                    )
+                // Save payload to file FIRST (before DB insert) to avoid race condition
+                val fileName = PayloadFileHelper.savePayload(this@ShortcutReceiverActivity, jsonPayload)
+                val queueItem = QueueItemEntity(
+                    profileName = profile.name,
+                    url = profile.url,
+                    bearerToken = profile.bearerToken,
+                    jsonPayload = "",
+                    payloadFilePath = fileName,
+                    mediaType = profile.type,
+                    status = QueueStatus.PENDING.name,
+                    attempts = 0,
+                    lastError = null,
+                    createdAt = System.currentTimeMillis()
                 )
+                database.queueDao().insert(queueItem)
 
                 // Trigger queue processing
                 QueueWorker.enqueue(this@ShortcutReceiverActivity)
 
                 runOnUiThread {
-                    Toast.makeText(this@ShortcutReceiverActivity, getString(R.string.added_to_queue), Toast.LENGTH_SHORT).show()
+                    val msg = if (profile.compressEnabled && compressedSize > 0 && compressedSize < originalSize) {
+                        val saved = (100L - compressedSize * 100L / originalSize)
+                        "Compressed: ${formatSize(originalSize)} → ${formatSize(compressedSize)} ($saved% saved)"
+                    } else {
+                        getString(R.string.added_to_queue)
+                    }
+                    Toast.makeText(this@ShortcutReceiverActivity, msg, Toast.LENGTH_LONG).show()
                     finish()
                 }
             } catch (e: Exception) {
@@ -239,19 +267,28 @@ class ShortcutReceiverActivity : ComponentActivity() {
         }
     }
 
-    private fun buildJsonPayload(profile: ProfileEntity, base64Data: String): String {
-        val message = JsonObject(
-            mapOf(
-                "name" to JsonPrimitive(profile.name),
-                "prompt" to JsonPrimitive(profile.prompt),
-                "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
-                "type" to JsonPrimitive(profile.type),
-                "data" to JsonPrimitive(base64Data)
-            )
+    private fun formatSize(bytes: Long): String {
+        return when {
+            bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+            bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
+            else -> "$bytes B"
+        }
+    }
+
+    private fun buildJsonPayload(profile: ProfileEntity, base64Data: String, encoding: String? = null): String {
+        val messageMap = mutableMapOf(
+            "name" to JsonPrimitive(profile.name),
+            "prompt" to JsonPrimitive(profile.prompt),
+            "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
+            "type" to JsonPrimitive(profile.type),
+            "data" to JsonPrimitive(base64Data)
         )
+        if (encoding != null) {
+            messageMap["encoding"] = JsonPrimitive(encoding)
+        }
         val payload = JsonObject(
             mapOf(
-                "messages" to JsonArray(listOf(message))
+                "messages" to JsonArray(listOf(JsonObject(messageMap)))
             )
         )
         return json.encodeToString(JsonObject.serializer(), payload)

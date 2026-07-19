@@ -229,7 +229,8 @@ Comprehensive bash script for debugging, building, and testing:
       "prompt": "Describe what the AI should do with this media...",
       "datetime": "2026-07-18T12:00:00Z",
       "type": "image",
-      "data": "/9j/4AAQSkZJRg...Base64-encoded-content..."
+      "data": "/9j/4AAQSkZJRg...Base64-encoded-content...",
+      "encoding": "gzip"
     }
   ]
 }
@@ -242,6 +243,7 @@ Comprehensive bash script for debugging, building, and testing:
 | `datetime` | ISO 8601 UTC timestamp of capture (`yyyy-MM-dd'T'HH:mm:ss'Z'`) |
 | `type` | Media type: `image`, `audio`, or `video` |
 | `data` | Base64-encoded file content (NO_WRAP flag) |
+| `encoding` | *(optional)* Compression: `gzip` for audio/video, absent for uncompressed or JPEG-recompressed images |
 
 ### Queue retry strategy
 

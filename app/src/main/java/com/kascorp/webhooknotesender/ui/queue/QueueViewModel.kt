@@ -1,11 +1,13 @@
 package com.kascorp.webhooknotesender.ui.queue
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.work.QueueWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class QueueViewModel @Inject constructor(
-    private val queueRepository: QueueRepository
+    private val queueRepository: QueueRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val queueItems: StateFlow<List<QueueItemEntity>> = queueRepository.getAllItems()
@@ -44,6 +47,7 @@ class QueueViewModel @Inject constructor(
                 attempts = item.attempts,
                 lastError = null
             )
+            QueueWorker.enqueue(context)
         }
     }
 
@@ -59,10 +63,16 @@ class QueueViewModel @Inject constructor(
                     lastError = null
                 )
             }
-            // Trigger queue worker
             if (failedItems.isNotEmpty()) {
                 android.util.Log.d("QueueViewModel", "Retrying ${failedItems.size} failed items")
+                QueueWorker.enqueue(context)
             }
+        }
+    }
+
+    fun clearQueue() {
+        viewModelScope.launch {
+            queueRepository.deleteSentItems()
         }
     }
 }

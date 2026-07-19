@@ -3,6 +3,7 @@ package com.kascorp.webhooknotesender.ui.profiles
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
@@ -10,6 +11,7 @@ import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
+import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.util.ShortcutHelper
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,7 +43,9 @@ data class ProfileFormState(
     val urlError: String? = null,
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
-    val testResult: String? = null
+    val testResult: String? = null,
+    val compressEnabled: Boolean = true,
+    val compressionQuality: Int = 70
 )
 
 data class ProfileEditState(
@@ -55,6 +59,7 @@ class ProfilesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val queueRepository: QueueRepository,
     val base64Encoder: Base64Encoder,
+    private val mediaCompressor: MediaCompressor,
     private val shortcutHelper: ShortcutHelper,
     private val json: Json
 ) : AndroidViewModel(application) {
@@ -89,7 +94,9 @@ class ProfilesViewModel @Inject constructor(
                     type = profile.type,
                     prompt = profile.prompt,
                     url = profile.url,
-                    bearerToken = profile.bearerToken ?: ""
+                    bearerToken = profile.bearerToken ?: "",
+                    compressEnabled = profile.compressEnabled,
+                    compressionQuality = profile.compressionQuality
                 )
             }
         }
@@ -113,6 +120,14 @@ class ProfilesViewModel @Inject constructor(
 
     fun updateBearerToken(token: String) {
         _formState.value = _formState.value.copy(bearerToken = token)
+    }
+
+    fun updateCompressEnabled(enabled: Boolean) {
+        _formState.value = _formState.value.copy(compressEnabled = enabled)
+    }
+
+    fun updateCompressionQuality(quality: Int) {
+        _formState.value = _formState.value.copy(compressionQuality = quality.coerceIn(1, 100))
     }
 
     fun validate(): Boolean {
@@ -162,7 +177,9 @@ class ProfilesViewModel @Inject constructor(
                         type = state.type,
                         prompt = state.prompt.trim(),
                         url = state.url.trim(),
-                        bearerToken = state.bearerToken.trim().ifEmpty { null }
+                        bearerToken = state.bearerToken.trim().ifEmpty { null },
+                        compressEnabled = state.compressEnabled,
+                        compressionQuality = state.compressionQuality
                     )
                     profileRepository.update(profile)
                     // Update shortcuts: remove old pinned, refresh dynamic
@@ -174,7 +191,9 @@ class ProfilesViewModel @Inject constructor(
                         type = state.type,
                         prompt = state.prompt.trim(),
                         url = state.url.trim(),
-                        bearerToken = state.bearerToken.trim().ifEmpty { null }
+                        bearerToken = state.bearerToken.trim().ifEmpty { null },
+                        compressEnabled = state.compressEnabled,
+                        compressionQuality = state.compressionQuality
                     )
                     profileRepository.insert(profile)
                     // Refresh dynamic shortcuts with current profile list
@@ -211,37 +230,62 @@ class ProfilesViewModel @Inject constructor(
         shortcutHelper.removeShortcut(profileId)
     }
 
-    fun buildJsonPayload(profile: ProfileEntity, base64Data: String): String {
-        val message = JsonObject(
-            mapOf(
-                "name" to JsonPrimitive(profile.name),
-                "prompt" to JsonPrimitive(profile.prompt),
-                "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
-                "type" to JsonPrimitive(profile.type),
-                "data" to JsonPrimitive(base64Data)
-            )
+    fun buildJsonPayload(profile: ProfileEntity, base64Data: String, encoding: String? = null): String {
+        val messageMap = mutableMapOf(
+            "name" to JsonPrimitive(profile.name),
+            "prompt" to JsonPrimitive(profile.prompt),
+            "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
+            "type" to JsonPrimitive(profile.type),
+            "data" to JsonPrimitive(base64Data)
         )
+        if (encoding != null) {
+            messageMap["encoding"] = JsonPrimitive(encoding)
+        }
         val payload = JsonObject(
             mapOf(
-                "messages" to JsonArray(listOf(message))
+                "messages" to JsonArray(listOf(JsonObject(messageMap)))
             )
         )
         return json.encodeToString(JsonObject.serializer(), payload)
     }
 
-    fun enqueueCapturedMedia(profile: ProfileEntity, base64Data: String) {
+    data class CompressAndEncodeResult(
+        val base64: String,
+        val encoding: String?,
+        val originalSize: Long = 0L,
+        val compressedSize: Long = 0L
+    )
+
+    fun compressAndEncode(profile: ProfileEntity, bytes: ByteArray): CompressAndEncodeResult {
+        if (!profile.compressEnabled) {
+            val encoded = base64Encoder.encode(bytes)
+            return CompressAndEncodeResult(encoded, null, bytes.size.toLong(), bytes.size.toLong())
+        }
+        val result = mediaCompressor.compress(bytes, profile.type, profile.compressionQuality)
+        return CompressAndEncodeResult(
+            base64 = base64Encoder.encode(result.data),
+            encoding = result.encoding,
+            originalSize = result.originalSize,
+            compressedSize = result.compressedSize
+        )
+    }
+
+    fun enqueueCapturedMedia(profile: ProfileEntity, base64Data: String, encoding: String? = null) {
         viewModelScope.launch {
-            val payload = buildJsonPayload(profile, base64Data)
-            queueRepository.insert(
-                QueueItemEntity(
-                    profileName = profile.name,
-                    url = profile.url,
-                    bearerToken = profile.bearerToken,
-                    jsonPayload = payload,
-                    mediaType = profile.type,
-                    status = QueueStatus.PENDING.name
-                )
+            val payload = buildJsonPayload(profile, base64Data, encoding)
+            // Save payload to file FIRST (before DB insert) to avoid race condition:
+            // QueueWorker could pick up the item before the payload file is saved.
+            val fileName = PayloadFileHelper.savePayload(application, payload)
+            val queueItem = QueueItemEntity(
+                profileName = profile.name,
+                url = profile.url,
+                bearerToken = profile.bearerToken,
+                jsonPayload = "",
+                payloadFilePath = fileName,
+                mediaType = profile.type,
+                status = QueueStatus.PENDING.name
             )
+            queueRepository.insert(queueItem)
             // Trigger queue processing
             QueueWorker.enqueue(application)
         }

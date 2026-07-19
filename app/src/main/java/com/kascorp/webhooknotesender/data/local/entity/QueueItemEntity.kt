@@ -19,7 +19,10 @@ data class QueueItemEntity(
     val bearerToken: String? = null,
 
     @ColumnInfo(name = "json_payload")
-    val jsonPayload: String,
+    val jsonPayload: String = "",
+
+    @ColumnInfo(name = "payload_file_path")
+    val payloadFilePath: String? = null,
 
     @ColumnInfo(name = "media_type")
     val mediaType: String,

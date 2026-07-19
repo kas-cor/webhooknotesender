@@ -17,10 +17,12 @@ import androidx.core.app.NotificationCompat
 import com.kascorp.webhooknotesender.MainActivity
 import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.AppDatabase
+import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
+import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +46,9 @@ class AudioRecorderService : Service() {
     lateinit var base64Encoder: Base64Encoder
 
     @Inject
+    lateinit var mediaCompressor: MediaCompressor
+
+    @Inject
     lateinit var json: Json
 
     private var mediaRecorder: MediaRecorder? = null
@@ -56,11 +61,16 @@ class AudioRecorderService : Service() {
     private var profileUrl: String = ""
     private var bearerToken: String? = null
     private var profileType: String = "audio"
+    private var compressEnabled: Boolean = false
+    private var compressionQuality: Int = 70
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
+
+    var isPaused: Boolean = false
+        private set
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -72,8 +82,8 @@ class AudioRecorderService : Service() {
                 bearerToken = intent.getStringExtra("bearer_token")
                 profileType = intent.getStringExtra("profile_type") ?: "audio"
 
-                // If profile details not provided (shortcut flow), load from database synchronously
-                if (profileName.isEmpty() && profileId > 0) {
+                // Load profile from database to ensure latest settings (compression, etc.)
+                if (profileId > 0) {
                     val profile = runBlocking(Dispatchers.IO) {
                         database.profileDao().getProfileById(profileId)
                     }
@@ -83,6 +93,8 @@ class AudioRecorderService : Service() {
                         profileUrl = profile.url
                         bearerToken = profile.bearerToken
                         profileType = profile.type
+                        compressEnabled = profile.compressEnabled
+                        compressionQuality = profile.compressionQuality
                     }
                 }
 
@@ -95,6 +107,12 @@ class AudioRecorderService : Service() {
             }
             ACTION_STOP_RECORDING -> {
                 stopRecording()
+            }
+            ACTION_PAUSE_RECORDING -> {
+                pauseRecording()
+            }
+            ACTION_RESUME_RECORDING -> {
+                resumeRecording()
             }
         }
 
@@ -113,7 +131,8 @@ class AudioRecorderService : Service() {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
+                setAudioSamplingRate(if (compressEnabled) 22050 else 44100)
+                setAudioEncodingBitRate(if (compressEnabled) 32000 else 128000)
                 setOutputFile(outputFile?.absolutePath)
                 prepare()
                 start()
@@ -165,37 +184,55 @@ class AudioRecorderService : Service() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val base64Data = base64Encoder.encodeFile(file)
+                val base64Data: String
+                val encoding: String?
+                var originalSize = 0L
+                var compressedSize = 0L
+                if (compressEnabled) {
+                    val result = mediaCompressor.compressFile(file, profileType, compressionQuality)
+                    base64Data = base64Encoder.encode(result.data)
+                    encoding = result.encoding
+                    originalSize = result.originalSize
+                    compressedSize = result.compressedSize
+                } else {
+                    base64Data = base64Encoder.encodeFile(file)
+                    encoding = null
+                    originalSize = file.length()
+                    compressedSize = originalSize
+                }
 
-                val message = JsonObject(
-                    mapOf(
-                        "name" to JsonPrimitive(profileName),
-                        "prompt" to JsonPrimitive(profilePrompt),
-                        "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
-                        "type" to JsonPrimitive(profileType),
-                        "data" to JsonPrimitive(base64Data)
-                    )
+                val messageMap = mutableMapOf(
+                    "name" to JsonPrimitive(profileName),
+                    "prompt" to JsonPrimitive(profilePrompt),
+                    "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
+                    "type" to JsonPrimitive(profileType),
+                    "data" to JsonPrimitive(base64Data)
                 )
+                if (encoding != null) {
+                    messageMap["encoding"] = JsonPrimitive(encoding)
+                }
                 val payload = JsonObject(
                     mapOf(
-                        "messages" to JsonArray(listOf(message))
+                        "messages" to JsonArray(listOf(JsonObject(messageMap)))
                     )
                 )
                 val jsonPayload = json.encodeToString(JsonObject.serializer(), payload)
 
-                database.queueDao().insert(
-                    QueueItemEntity(
-                        profileName = profileName,
-                        url = profileUrl,
-                        bearerToken = bearerToken,
-                        jsonPayload = jsonPayload,
-                        mediaType = profileType,
-                        status = QueueStatus.PENDING.name,
-                        attempts = 0,
-                        lastError = null,
-                        createdAt = System.currentTimeMillis()
-                    )
+                // Save payload to file FIRST (before DB insert) to avoid race condition
+                val fileName = PayloadFileHelper.savePayload(this@AudioRecorderService, jsonPayload)
+                val queueItem = QueueItemEntity(
+                    profileName = profileName,
+                    url = profileUrl,
+                    bearerToken = bearerToken,
+                    jsonPayload = "",
+                    payloadFilePath = fileName,
+                    mediaType = profileType,
+                    status = QueueStatus.PENDING.name,
+                    attempts = 0,
+                    lastError = null,
+                    createdAt = System.currentTimeMillis()
                 )
+                database.queueDao().insert(queueItem)
 
                 if (file.exists()) {
                     file.delete()
@@ -204,7 +241,13 @@ class AudioRecorderService : Service() {
                 QueueWorker.enqueue(this@AudioRecorderService)
 
                 mainHandler.post {
-                    Toast.makeText(this@AudioRecorderService, getString(R.string.added_to_queue), Toast.LENGTH_SHORT).show()
+                    val msg = if (compressEnabled && compressedSize > 0 && compressedSize < originalSize) {
+                        val saved = (100L - compressedSize * 100L / originalSize)
+                        "Compressed: ${formatSize(originalSize)} → ${formatSize(compressedSize)} ($saved% saved)"
+                    } else {
+                        getString(R.string.added_to_queue)
+                    }
+                    Toast.makeText(this@AudioRecorderService, msg, Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to process audio: ${e.message}", e)
@@ -261,9 +304,45 @@ class AudioRecorderService : Service() {
             .build()
     }
 
+    private fun pauseRecording() {
+        try {
+            mediaRecorder?.pause()
+            isPaused = true
+            updateNotification()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to pause recording: ${e.message}", e)
+        }
+    }
+
+    private fun resumeRecording() {
+        try {
+            mediaRecorder?.resume()
+            isPaused = false
+            updateNotification()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resume recording: ${e.message}", e)
+        }
+    }
+
+    private fun updateNotification() {
+        val notification = createRecordingNotification()
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun formatSize(bytes: Long): String {
+        return when {
+            bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+            bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
+            else -> "$bytes B"
+        }
+    }
+
     companion object {
         const val ACTION_START_RECORDING = "com.kascorp.webhooknotesender.START_RECORDING"
         const val ACTION_STOP_RECORDING = "com.kascorp.webhooknotesender.STOP_RECORDING"
+        const val ACTION_PAUSE_RECORDING = "com.kascorp.webhooknotesender.PAUSE_RECORDING"
+        const val ACTION_RESUME_RECORDING = "com.kascorp.webhooknotesender.RESUME_RECORDING"
         private const val CHANNEL_ID = "audio_recording"
         private const val NOTIFICATION_ID = 1001
         private const val TAG = "AudioRecorderService"
