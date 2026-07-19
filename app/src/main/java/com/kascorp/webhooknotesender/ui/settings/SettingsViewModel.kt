@@ -145,8 +145,9 @@ class SettingsViewModel @Inject constructor(
                         )
                     }
 
-                    // Location: /kas-cor/webhooknotesender/releases/tag/v0.2
-                    val tagVersion = location.substringAfterLast("/v").removePrefix("v")
+                    // Location can be relative (/kas-cor/.../v0.3) or absolute (https://github.com/kas-cor/.../v0.3)
+                    val resolvedUrl = if (location.startsWith("http")) location else "https://github.com$location"
+                    val tagVersion = resolvedUrl.substringAfterLast("/v").removePrefix("v")
                     if (tagVersion.isEmpty()) {
                         return@withContext UpdateCheckState.Error(
                             context.getString(com.kascorp.webhooknotesender.R.string.update_check_error)
@@ -155,10 +156,9 @@ class SettingsViewModel @Inject constructor(
 
                     val currentVersion = BuildConfig.VERSION_NAME
                     if (isVersionNewer(tagVersion, currentVersion)) {
-                        val downloadUrl = "https://github.com${location}"
                         UpdateCheckState.Available(
                             latestVersion = tagVersion,
-                            downloadUrl = downloadUrl
+                            downloadUrl = resolvedUrl
                         )
                     } else {
                         UpdateCheckState.UpToDate
