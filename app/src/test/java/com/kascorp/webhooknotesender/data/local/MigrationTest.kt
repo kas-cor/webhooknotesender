@@ -62,4 +62,55 @@ class MigrationTest {
         cursor.close()
         db.close()
     }
+
+    @Test
+    fun `migration 4 to 5 adds use_count column with correct default`() {
+        val context = RuntimeEnvironment.getApplication()
+        val dbName = "migration_test_v4"
+        context.deleteDatabase(dbName)
+
+        val factory = FrameworkSQLiteOpenHelperFactory()
+
+        val v4Configuration = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(dbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(4) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    db.execSQL("""
+                        CREATE TABLE profiles (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            name TEXT NOT NULL,
+                            type TEXT NOT NULL,
+                            prompt TEXT NOT NULL,
+                            url TEXT NOT NULL,
+                            bearer_token TEXT,
+                            compress_enabled INTEGER NOT NULL DEFAULT 1,
+                            compression_quality INTEGER NOT NULL DEFAULT 70
+                        )
+                    """)
+                }
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val v4Helper = factory.create(v4Configuration)
+        val db = v4Helper.writableDatabase
+
+        assertEquals("Database should be at version 4 before migration", 4, db.version)
+
+        // Insert a profile matching v4 schema
+        db.execSQL("""
+            INSERT INTO profiles (id, name, type, prompt, url, bearer_token, compress_enabled, compression_quality)
+            VALUES (1, 'Test Profile', 'image', 'Test prompt', 'https://example.com', NULL, 1, 70)
+        """)
+
+        // Run the 4→5 migration
+        AppDatabase.MIGRATION_4_5.migrate(db)
+
+        // Verify new column exists with correct default value
+        val cursor = db.query("SELECT use_count FROM profiles WHERE id = 1")
+        cursor.moveToFirst()
+        assertEquals("use_count should default to 0", 0, cursor.getInt(0))
+        cursor.close()
+        db.close()
+    }
 }

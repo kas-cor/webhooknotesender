@@ -12,10 +12,15 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.kascorp.webhooknotesender.data.remote.WebhookApi
+import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.util.LocaleHelper
+import com.kascorp.webhooknotesender.util.ShortcutHelper
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import javax.inject.Inject
 
@@ -31,6 +36,12 @@ class WebhookNoteSenderApp : Application(), Configuration.Provider {
     @Inject
     lateinit var webhookApi: WebhookApi
 
+    @Inject
+    lateinit var profileRepository: ProfileRepository
+
+    @Inject
+    lateinit var shortcutHelper: ShortcutHelper
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(ChainedWorkerFactory(hiltWorkerFactory, queueRepository, webhookApi))
@@ -45,6 +56,11 @@ class WebhookNoteSenderApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         QueueWorker.enqueue(this)
+        // Set up app shortcuts (long-press app icon) with top profiles
+        runBlocking(Dispatchers.IO) {
+            val profiles = profileRepository.getTopProfiles(5).first()
+            shortcutHelper.updateAppShortcuts(profiles)
+        }
     }
 }
 

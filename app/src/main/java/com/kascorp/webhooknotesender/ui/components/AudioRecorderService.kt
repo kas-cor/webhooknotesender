@@ -234,6 +234,11 @@ class AudioRecorderService : Service() {
                 )
                 database.queueDao().insert(queueItem)
 
+                // Track usage for app shortcuts ranking
+                if (profileId > 0) {
+                    database.profileDao().incrementUseCount(profileId)
+                }
+
                 if (file.exists()) {
                     file.delete()
                 }

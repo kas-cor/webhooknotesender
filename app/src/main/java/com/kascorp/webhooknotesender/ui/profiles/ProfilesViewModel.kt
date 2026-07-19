@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -186,6 +187,9 @@ class ProfilesViewModel @Inject constructor(
                     profileRepository.update(profile)
                     // Remove stale shortcut entry so it can be re-created with updated info
                     shortcutHelper.removeShortcut(profile.id)
+                    // Update app shortcuts to reflect renamed profile
+                    val topProfiles = profileRepository.getTopProfiles(5).first()
+                    shortcutHelper.updateAppShortcuts(topProfiles)
                 } else {
                     val profile = ProfileEntity(
                         name = state.name.trim(),
@@ -212,6 +216,9 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             shortcutHelper.removeShortcut(profile.id)
             profileRepository.delete(profile)
+            // Update app shortcuts to remove the deleted profile
+            val topProfiles = profileRepository.getTopProfiles(5).first()
+            shortcutHelper.updateAppShortcuts(topProfiles)
         }
     }
 
@@ -285,6 +292,11 @@ class ProfilesViewModel @Inject constructor(
             queueRepository.insert(queueItem)
             // Trigger queue processing
             QueueWorker.enqueue(application)
+            // Track usage for app shortcuts ranking
+            profileRepository.incrementUseCount(profile.id)
+            // Update app shortcuts (long-press app icon) with new rankings
+            val topProfiles = profileRepository.getTopProfiles(5).first()
+            shortcutHelper.updateAppShortcuts(topProfiles)
         }
     }
 

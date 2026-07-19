@@ -247,6 +247,9 @@ class ShortcutReceiverActivity : ComponentActivity() {
                 )
                 database.queueDao().insert(queueItem)
 
+                // Track usage for app shortcuts ranking
+                database.profileDao().incrementUseCount(profile.id)
+
                 // Trigger queue processing
                 QueueWorker.enqueue(this@ShortcutReceiverActivity)
 

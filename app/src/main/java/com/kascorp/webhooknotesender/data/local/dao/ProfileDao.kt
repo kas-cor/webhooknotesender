@@ -38,4 +38,10 @@ interface ProfileDao {
 
     @Query("DELETE FROM profiles WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM profiles ORDER BY use_count DESC LIMIT :limit")
+    fun getTopProfiles(limit: Int): Flow<List<ProfileEntity>>
+
+    @Query("UPDATE profiles SET use_count = use_count + 1 WHERE id = :id")
+    suspend fun incrementUseCount(id: Long)
 }

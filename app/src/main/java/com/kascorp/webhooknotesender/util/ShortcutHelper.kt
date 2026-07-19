@@ -27,6 +27,7 @@ class ShortcutHelper @Inject constructor(
 
     companion object {
         private const val SHORTCUT_PREFIX = "shortcut_"
+        private const val APP_SHORTCUT_PREFIX = "app_shortcut_"
         private const val PREFS_NAME = "shortcut_prefs"
         const val ACTION_CAPTURE_SHORTCUT = "com.kascorp.webhooknotesender.CAPTURE_SHORTCUT"
     }
@@ -78,6 +79,22 @@ class ShortcutHelper @Inject constructor(
         val result = ShortcutManagerCompat.setDynamicShortcuts(context, listOf(shortcut))
         prefs.edit().putBoolean("$SHORTCUT_PREFIX${profile.id}", true).apply()
         return result
+    }
+
+    /**
+     * Updates the top-ranked app shortcuts shown on long-press of the app icon.
+     * Sets up to 5 dynamic shortcuts sorted by use_count descending.
+     * Uses a distinct ID prefix ("app_shortcut_") to avoid collision with
+     * pinned shortcuts ("shortcut_") on launchers that treat all shortcuts
+     * in a shared namespace.
+     */
+    fun updateAppShortcuts(profiles: List<ProfileEntity>) {
+        if (profiles.isEmpty()) {
+            ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+            return
+        }
+        val shortcutInfos = profiles.take(5).map { createAppShortcutInfo(it) }
+        ShortcutManagerCompat.setDynamicShortcuts(context, shortcutInfos)
     }
 
     /**
@@ -138,11 +155,11 @@ class ShortcutHelper @Inject constructor(
     }
 
     /**
-     * Creates a ShortcutInfoCompat for the given profile.
-     * Generates a bitmap icon with a colored circle background
-     * and white icon for reliable rendering across launchers.
+     * Creates a ShortcutInfoCompat for the given profile with the specified I'D prefix.
+     * Pinned shortcuts use "shortcut_" (long-lived). App shortcuts (long-press on
+     * app icon) use "app_shortcut_" (non-long-lived) to avoid ID collision.
      */
-    private fun createShortcutInfo(profile: ProfileEntity): ShortcutInfoCompat {
+    private fun createShortcutInfo(profile: ProfileEntity, idPrefix: String = SHORTCUT_PREFIX, longLived: Boolean = true): ShortcutInfoCompat {
         val intent = Intent(ACTION_CAPTURE_SHORTCUT).apply {
             putExtra("profile_id", profile.id)
             `package` = context.packageName
@@ -163,13 +180,22 @@ class ShortcutHelper @Inject constructor(
 
         val icon = createShortcutIcon(iconRes, bgColor)
 
-        return ShortcutInfoCompat.Builder(context, "$SHORTCUT_PREFIX${profile.id}")
+        return ShortcutInfoCompat.Builder(context, "$idPrefix${profile.id}")
             .setShortLabel(profile.name)
             .setLongLabel(profile.name)
             .setIcon(icon)
             .setIntent(intent)
-            .setLongLived(true)
+            .setLongLived(longLived)
             .build()
+    }
+
+    /**
+     * Creates a ShortcutInfoCompat for app icon long-press shortcuts.
+     * Uses a distinct ID prefix ("app_shortcut_") to avoid ID collision
+     * with pinned shortcuts ("shortcut_").
+     */
+    private fun createAppShortcutInfo(profile: ProfileEntity): ShortcutInfoCompat {
+        return createShortcutInfo(profile, APP_SHORTCUT_PREFIX, false)
     }
 
     /**

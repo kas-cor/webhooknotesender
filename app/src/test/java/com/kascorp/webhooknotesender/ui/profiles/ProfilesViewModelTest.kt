@@ -443,6 +443,7 @@ class ProfilesViewModelTest {
     fun `saveProfile updates existing profile and removes old shortcut`() = runTest(testDispatcher) {
         coEvery { profileRepository.getProfileById(1L) } returns testProfile
         coEvery { profileRepository.update(any<ProfileEntity>()) } returns Unit
+        coEvery { profileRepository.getTopProfiles(any<Int>()) } returns flowOf(emptyList())
         viewModel = createViewModel()
 
         viewModel.loadProfile(1L)
@@ -499,6 +500,7 @@ class ProfilesViewModelTest {
     @Test
     fun `deleteProfile removes shortcut and deletes profile`() = runTest(testDispatcher) {
         coEvery { profileRepository.delete(testProfile) } returns Unit
+        coEvery { profileRepository.getTopProfiles(any<Int>()) } returns flowOf(emptyList())
         viewModel = createViewModel()
 
         viewModel.deleteProfile(testProfile)
@@ -506,6 +508,7 @@ class ProfilesViewModelTest {
 
         verify(exactly = 1) { shortcutHelper.removeShortcut(testProfile.id) }
         coVerify(exactly = 1) { profileRepository.delete(testProfile) }
+        coVerify(exactly = 1) { profileRepository.getTopProfiles(5) }
     }
 
     // ===================== shortcut methods =====================
@@ -599,6 +602,8 @@ class ProfilesViewModelTest {
         every { PayloadFileHelper.savePayload(application, any<String>()) } returns "payload_temp_uuid.json"
         coEvery { queueRepository.insert(any<QueueItemEntity>()) } returns 1L
         every { QueueWorker.enqueue(application) } just runs
+        coEvery { profileRepository.incrementUseCount(any<Long>()) } returns Unit
+        coEvery { profileRepository.getTopProfiles(any<Int>()) } returns flowOf(emptyList())
 
         viewModel = createViewModel()
         advanceUntilIdle()
@@ -635,6 +640,8 @@ class ProfilesViewModelTest {
         every { PayloadFileHelper.savePayload(application, any<String>()) } returns "payload_temp_uuid.json"
         coEvery { queueRepository.insert(any<QueueItemEntity>()) } returns 2L
         every { QueueWorker.enqueue(application) } just runs
+        coEvery { profileRepository.incrementUseCount(any<Long>()) } returns Unit
+        coEvery { profileRepository.getTopProfiles(any<Int>()) } returns flowOf(emptyList())
 
         viewModel = createViewModel()
         advanceUntilIdle()

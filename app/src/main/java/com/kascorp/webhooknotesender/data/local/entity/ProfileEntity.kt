@@ -32,5 +32,8 @@ data class ProfileEntity(
     val compressEnabled: Boolean = true,
 
     @ColumnInfo(name = "compression_quality")
-    val compressionQuality: Int = 70
+    val compressionQuality: Int = 70,
+
+    @ColumnInfo(name = "use_count", defaultValue = "0")
+    val useCount: Int = 0
 )

@@ -14,7 +14,7 @@ import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
         ProfileEntity::class,
         QueueItemEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,6 +39,10 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_3_4 = Migration(3, 4) { db ->
             db.execSQL("ALTER TABLE profiles ADD COLUMN compress_enabled INTEGER NOT NULL DEFAULT 1")
             db.execSQL("ALTER TABLE profiles ADD COLUMN compression_quality INTEGER NOT NULL DEFAULT 70")
+        }
+
+        val MIGRATION_4_5 = Migration(4, 5) { db ->
+            db.execSQL("ALTER TABLE profiles ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
         }
     }
 }

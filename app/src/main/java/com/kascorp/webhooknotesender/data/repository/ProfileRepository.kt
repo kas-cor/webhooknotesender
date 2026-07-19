@@ -32,4 +32,8 @@ class ProfileRepository @Inject constructor(
     suspend fun delete(profile: ProfileEntity) = profileDao.delete(profile)
 
     suspend fun deleteById(id: Long) = profileDao.deleteById(id)
+
+    fun getTopProfiles(limit: Int): Flow<List<ProfileEntity>> = profileDao.getTopProfiles(limit)
+
+    suspend fun incrementUseCount(id: Long) = profileDao.incrementUseCount(id)
 }
