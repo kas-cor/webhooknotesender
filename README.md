@@ -374,8 +374,9 @@ cp app/src/main/res/values/strings.xml app/src/main/res/values-de/strings.xml
 
 | Version | Date | Highlights |
 |---|---|---|
-| v1.0.0 | 2026-07-18 | Initial release: profile CRUD, media capture, queue with WorkManager, shortcuts, bilingual UI |
-| [Unreleased] | — | App shortcuts (long-press), use_count tracking, video transcode removed (fixes hang), shortcut lifecycle fixes |
+| **v0.3** | 2026-07-19 | App Shortcuts (long-press), use_count tracking, shortcut lifecycle fixes, video transcode removed |
+| v0.2 | 2026-07-18 | Initial feature release: profile CRUD, media capture, queue with WorkManager, shortcuts, bilingual UI |
+| v0.1 | 2026-07-18 | Project scaffolding |
 
 ---
 
