@@ -184,9 +184,8 @@ class ProfilesViewModel @Inject constructor(
                         compressionQuality = state.compressionQuality
                     )
                     profileRepository.update(profile)
-                    // Update shortcuts: remove old pinned, refresh dynamic
+                    // Remove stale shortcut entry so it can be re-created with updated info
                     shortcutHelper.removeShortcut(profile.id)
-                    shortcutHelper.updateDynamicShortcuts(profiles.value)
                 } else {
                     val profile = ProfileEntity(
                         name = state.name.trim(),
@@ -198,8 +197,6 @@ class ProfilesViewModel @Inject constructor(
                         compressionQuality = state.compressionQuality
                     )
                     profileRepository.insert(profile)
-                    // Refresh dynamic shortcuts with current profile list
-                    shortcutHelper.updateDynamicShortcuts(profiles.value)
                 }
                 onSuccess()
             } catch (e: Exception) {
@@ -215,8 +212,6 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             shortcutHelper.removeShortcut(profile.id)
             profileRepository.delete(profile)
-            // Refresh dynamic shortcuts
-            shortcutHelper.updateDynamicShortcuts(profiles.value)
         }
     }
 

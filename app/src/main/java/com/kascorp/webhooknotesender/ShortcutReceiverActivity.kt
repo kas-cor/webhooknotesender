@@ -188,6 +188,12 @@ class ShortcutReceiverActivity : ComponentActivity() {
         val intent = Intent(this, AudioRecorderService::class.java).apply {
             putExtra("output_file", audioFile.absolutePath)
             putExtra("profile_id", profile.id)
+            putExtra("profile_name", profile.name)
+            putExtra("profile_prompt", profile.prompt)
+            putExtra("profile_url", profile.url)
+            putExtra("bearer_token", profile.bearerToken)
+            putExtra("profile_type", profile.type)
+            action = AudioRecorderService.ACTION_START_RECORDING
         }
         ContextCompat.startForegroundService(this, intent)
         Toast.makeText(this, getString(R.string.audio_recording_started), Toast.LENGTH_SHORT).show()

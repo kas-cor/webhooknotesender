@@ -24,8 +24,11 @@ class ShortcutHelper @Inject constructor(
 
     companion object {
         private const val SHORTCUT_PREFIX = "shortcut_"
+        private const val PREFS_NAME = "shortcut_prefs"
         const val ACTION_CAPTURE_SHORTCUT = "com.kascorp.webhooknotesender.CAPTURE_SHORTCUT"
     }
+
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
      * Creates a pinned shortcut on the home screen.
@@ -38,17 +41,19 @@ class ShortcutHelper @Inject constructor(
 
         val shortcut = createShortcutInfo(profile)
         ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+        // Track pinned shortcut for isShortcutCreated()
+        prefs.edit().putBoolean("$SHORTCUT_PREFIX${profile.id}", true).apply()
     }
 
     /**
-     * Updates dynamic shortcuts with all active profiles.
-     * Maximum 5 dynamic shortcuts (system limit).
+     * Creates a dynamic shortcut for a specific profile.
      */
-    fun updateDynamicShortcuts(profiles: List<ProfileEntity>) {
-        val shortcuts = profiles.take(5).map { profile ->
-            createShortcutInfo(profile)
-        }
-        ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
+    fun createDynamicShortcut(profile: ProfileEntity): Boolean {
+        if (isShortcutCreated(profile.id)) return false
+        val shortcut = createShortcutInfo(profile)
+        val result = ShortcutManagerCompat.setDynamicShortcuts(context, listOf(shortcut))
+        prefs.edit().putBoolean("$SHORTCUT_PREFIX${profile.id}", true).apply()
+        return result
     }
 
     /**
@@ -56,16 +61,19 @@ class ShortcutHelper @Inject constructor(
      */
     fun removeShortcut(profileId: Long) {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
+        prefs.edit().remove(shortcutId).apply()
         ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
     }
 
     /**
      * Checks if a shortcut exists for the given profile.
+     * Checks both pinned (via SharedPreferences) and dynamic shortcuts.
      */
     fun isShortcutCreated(profileId: Long): Boolean {
         val shortcutId = "$SHORTCUT_PREFIX$profileId"
-        return ShortcutManagerCompat.getDynamicShortcuts(context)
-            .any { it.id == shortcutId }
+        return prefs.getBoolean(shortcutId, false) ||
+            ShortcutManagerCompat.getDynamicShortcuts(context)
+                .any { it.id == shortcutId }
     }
 
     /**
@@ -86,7 +94,7 @@ class ShortcutHelper @Inject constructor(
 
         return ShortcutInfoCompat.Builder(context, "$SHORTCUT_PREFIX${profile.id}")
             .setShortLabel(profile.name)
-            .setLongLabel("${profile.name} · ${profile.type}")
+            .setLongLabel(profile.name)
             .setIcon(IconCompat.createWithResource(context, iconRes))
             .setIntent(intent)
             .build()

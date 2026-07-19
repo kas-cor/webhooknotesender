@@ -57,6 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,8 +95,13 @@ fun ProfilesScreen(
     val profiles by viewModel.profiles.collectAsState()
     val context = LocalContext.current
 
-    var pendingCaptureProfile by remember { mutableStateOf<ProfileEntity?>(null) }
-    var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCaptureProfileId by rememberSaveable { mutableStateOf(-1L) }
+    var pendingCaptureUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    // Audio profile data stored separately to avoid stale closure references in permission launcher callback
+    var pendingAudioName by rememberSaveable { mutableStateOf("") }
+    var pendingAudioPrompt by rememberSaveable { mutableStateOf("") }
+    var pendingAudioUrl by rememberSaveable { mutableStateOf("") }
+    var pendingAudioToken by rememberSaveable { mutableStateOf("") }
 
     fun formatSize(bytes: Long): String {
         return when {
@@ -108,9 +114,9 @@ fun ProfilesScreen(
     val imageCaptureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        val profile = pendingCaptureProfile
+        val profile = profiles.find { it.id == pendingCaptureProfileId }
         val uri = pendingCaptureUri
-        pendingCaptureProfile = null
+        pendingCaptureProfileId = -1L
         pendingCaptureUri = null
         if (success && profile != null && uri != null) {
             var result: ProfilesViewModel.CompressAndEncodeResult? = null
@@ -141,9 +147,9 @@ fun ProfilesScreen(
     val videoCaptureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CaptureVideo()
     ) { success ->
-        val profile = pendingCaptureProfile
+        val profile = profiles.find { it.id == pendingCaptureProfileId }
         val uri = pendingCaptureUri
-        pendingCaptureProfile = null
+        pendingCaptureProfileId = -1L
         pendingCaptureUri = null
         if (success && profile != null && uri != null) {
             var result: ProfilesViewModel.CompressAndEncodeResult? = null
@@ -174,7 +180,7 @@ fun ProfilesScreen(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        val profile = pendingCaptureProfile
+        val profile = profiles.find { it.id == pendingCaptureProfileId }
         if (granted && profile != null) {
             val type = profile.type.lowercase()
             val file = File(context.cacheDir, "temp_capture_${System.currentTimeMillis()}.${if (type == "video") "mp4" else "jpg"}")
@@ -186,7 +192,7 @@ fun ProfilesScreen(
                 imageCaptureLauncher.launch(uri)
             }
         } else {
-            pendingCaptureProfile = null
+            pendingCaptureProfileId = -1L
             Toast.makeText(context, context.getString(R.string.permission_required, "Camera"), Toast.LENGTH_SHORT).show()
         }
     }
@@ -194,17 +200,20 @@ fun ProfilesScreen(
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        val profile = pendingCaptureProfile
-        pendingCaptureProfile = null
-        if (granted && profile != null) {
-            // Navigate to the new AudioRecordingScreen instead of starting the service directly
+        val id = pendingCaptureProfileId
+        pendingCaptureProfileId = -1L
+        if (granted && id != -1L) {
             onAudioCapture(
-                profile.id,
-                profile.name,
-                profile.prompt,
-                profile.url,
-                profile.bearerToken
+                id,
+                pendingAudioName,
+                pendingAudioPrompt,
+                pendingAudioUrl,
+                pendingAudioToken.ifEmpty { null }
             )
+            pendingAudioName = ""
+            pendingAudioPrompt = ""
+            pendingAudioUrl = ""
+            pendingAudioToken = ""
         } else {
             Toast.makeText(context, context.getString(R.string.permission_required, "Microphone"), Toast.LENGTH_SHORT).show()
         }
@@ -251,7 +260,7 @@ fun ProfilesScreen(
                         onEdit = { onEditProfile(profile.id) },
                         onDelete = { viewModel.deleteProfile(profile) },
                         onCapture = {
-                            pendingCaptureProfile = profile
+                            pendingCaptureProfileId = profile.id
                             val type = profile.type.lowercase()
                             if (type == "audio") {
                                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
@@ -265,6 +274,10 @@ fun ProfilesScreen(
                                         profile.bearerToken
                                     )
                                 } else {
+                                    pendingAudioName = profile.name
+                                    pendingAudioPrompt = profile.prompt
+                                    pendingAudioUrl = profile.url
+                                    pendingAudioToken = profile.bearerToken ?: ""
                                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -283,6 +296,7 @@ fun ProfilesScreen(
                             }
                         },
                         onCreateShortcut = { viewModel.createShortcut(profile) },
+                        onRemoveShortcut = { viewModel.removeShortcut(profile.id) },
                         hasShortcut = viewModel.isShortcutCreated(profile.id)
                     )
                 }
@@ -338,6 +352,7 @@ fun ProfileCard(
     onDelete: () -> Unit,
     onCapture: () -> Unit,
     onCreateShortcut: () -> Unit,
+    onRemoveShortcut: () -> Unit,
     hasShortcut: Boolean
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -405,21 +420,19 @@ fun ProfileCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Colorful icon circle
+            // Colorful type icon
             Box(
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(
-                        brush = Brush.horizontalGradient(cardGradient)
-                    ),
+                    .background(cardAccentColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = typeIcon,
                     contentDescription = stringResource(typeLabelRes),
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
+                    tint = cardAccentColor,
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
@@ -459,7 +472,7 @@ fun ProfileCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.TouchApp,
@@ -500,7 +513,7 @@ fun ProfileCard(
                         text = { Text(if (hasShortcut) stringResource(R.string.remove_shortcut) else stringResource(R.string.create_shortcut)) },
                         onClick = {
                             showMenu = false
-                            onCreateShortcut()
+                            if (hasShortcut) onRemoveShortcut() else onCreateShortcut()
                         },
                         leadingIcon = {
                             Icon(

@@ -410,11 +410,9 @@ class ProfilesViewModelTest {
     }
 
     @Test
-    fun `saveProfile inserts new profile and refreshes shortcuts`() = runTest(testDispatcher) {
+    fun `saveProfile inserts new profile`() = runTest(testDispatcher) {
         coEvery { profileRepository.insert(any<ProfileEntity>()) } returns 3L
         viewModel = createViewModel()
-        // Force subscription to trigger upstream emission so profiles.value is not emptyList()
-        viewModel.profiles.first { it.isNotEmpty() }
 
         viewModel.updateName("New Camera")
         viewModel.updateType("image")
@@ -439,16 +437,13 @@ class ProfilesViewModelTest {
                 }
             )
         }
-        verify(exactly = 1) { shortcutHelper.updateDynamicShortcuts(allProfiles) }
     }
 
     @Test
-    fun `saveProfile updates existing profile and refreshes shortcuts`() = runTest(testDispatcher) {
+    fun `saveProfile updates existing profile and removes old shortcut`() = runTest(testDispatcher) {
         coEvery { profileRepository.getProfileById(1L) } returns testProfile
         coEvery { profileRepository.update(any<ProfileEntity>()) } returns Unit
         viewModel = createViewModel()
-        // Force subscription to trigger upstream emission so profiles.value is not emptyList()
-        viewModel.profiles.first { it.isNotEmpty() }
 
         viewModel.loadProfile(1L)
         advanceUntilIdle()
@@ -474,7 +469,6 @@ class ProfilesViewModelTest {
             )
         }
         verify(exactly = 1) { shortcutHelper.removeShortcut(1L) }
-        verify(exactly = 1) { shortcutHelper.updateDynamicShortcuts(allProfiles) }
     }
 
     @Test
@@ -506,15 +500,12 @@ class ProfilesViewModelTest {
     fun `deleteProfile removes shortcut and deletes profile`() = runTest(testDispatcher) {
         coEvery { profileRepository.delete(testProfile) } returns Unit
         viewModel = createViewModel()
-        // Force subscription to trigger upstream emission so profiles.value is not emptyList()
-        viewModel.profiles.first { it.isNotEmpty() }
 
         viewModel.deleteProfile(testProfile)
         advanceUntilIdle()
 
         verify(exactly = 1) { shortcutHelper.removeShortcut(testProfile.id) }
         coVerify(exactly = 1) { profileRepository.delete(testProfile) }
-        verify(exactly = 1) { shortcutHelper.updateDynamicShortcuts(allProfiles) }
     }
 
     // ===================== shortcut methods =====================
