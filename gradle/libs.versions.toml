@@ -21,7 +21,7 @@ camerax = "1.4.1"
 junit = "4.13.2"
 mockk = "1.13.12"
 work-testing = "2.10.0"
-coroutines-test = "1.9.0"
+coroutines-test = "1.11.0"
 robolectric = "4.14.1"
 
 [libraries]
