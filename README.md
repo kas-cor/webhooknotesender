@@ -115,16 +115,18 @@ webhooknotesender/
 | **UI** | Jetpack Compose + Material 3 (BOM 2024.12) |
 | **Navigation** | Navigation Compose (Bottom Nav) |
 | **DI** | Dagger Hilt 2.53 |
-| **Database** | Room 2.6.1 (KSP) |
+| **Database** | Room 2.8.4 (KSP) |
 | **HTTP Client** | OkHttp 4.12 |
 | **Background** | WorkManager + CoroutineWorker |
 | **Serialization** | kotlinx.serialization 1.7.3 |
-| **Preferences** | DataStore Preferences |
+| **Preferences** | DataStore Preferences 1.2.1 |
 | **Camera** | CameraX 1.4.1 + ActivityResultContracts |
 | **Audio** | MediaRecorder + Foreground Service |
 | **Video Compression** | GZIP (file bytes) — transcoding removed |
+| **Navigation** | Navigation Compose 2.9.8 |
+| **Coroutines** | Kotlinx Coroutines 1.11.0 |
 | **minSdk / targetSdk / compileSdk** | 26 / 35 / 36 |
-| **Testing** | JUnit 4.13.2 |
+| **Testing** | JUnit 4.13.2, Robolectric 4.16.1 |
 
 ---
 
@@ -320,6 +322,8 @@ Tag push (after build-release):
 |---|---|
 | `KEYSTORE_BASE64` | `webhooknotesender-release.jks` in base64 |
 | `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Key alias (default: `webhooknotesender`) |
+| `KEY_PASSWORD` | Key password (default: same as `KEYSTORE_PASSWORD`) |
 
 ### Release Process
 
@@ -374,6 +378,7 @@ cp app/src/main/res/values/strings.xml app/src/main/res/values-de/strings.xml
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.3-hotfix** | 2026-07-27 | Retry empty JSON fix, dependency updates (Room 2.8.4, Nav 2.9.8, Coroutines 1.11.0), GitHub Secrets setup |
 | **v0.3** | 2026-07-19 | App Shortcuts (long-press), use_count tracking, shortcut lifecycle fixes, video transcode removed |
 | v0.2 | 2026-07-18 | Initial feature release: profile CRUD, media capture, queue with WorkManager, shortcuts, bilingual UI |
 | v0.1 | 2026-07-18 | Project scaffolding |
