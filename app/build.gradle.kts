@@ -261,7 +261,7 @@ dependencies {
     // Testing — Compose UI (instrumentation / androidTest)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation(libs.mockk)
     androidTestImplementation(libs.coroutines.test)
 }
