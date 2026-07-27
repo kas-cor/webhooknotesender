@@ -61,7 +61,7 @@ After setting up secrets, CI/CD will work automatically:
    - `locales` — validate string key parity between EN and RU
    - `build-debug` — build debug APK
 
-2. **Push tag `v*`** (e.g., `v0.3`) — additionally:
+2. **Push tag `v*`** (e.g., `v0.3-hotfix`) — additionally:
    - `build-release` — signed release build
    - `release` — create GitHub Release with APK
 
@@ -72,10 +72,10 @@ After setting up secrets, CI/CD will work automatically:
 git status
 
 # 2. Create a new version tag
-git tag v0.3
+git tag v0.3-hotfix
 
 # 3. Push the tag
-git push origin v0.3
+git push origin v0.3-hotfix
 
 # 4. CI/CD will automatically:
 #    - Increment versionCode

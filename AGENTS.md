@@ -22,21 +22,20 @@
 |---|---|
 | Language | Kotlin 2.1.0 |
 | UI | Jetpack Compose + Material 3 (BOM 2024.12) |
-| Navigation | Navigation Compose |
+| Navigation | Navigation Compose 2.9.8 |
 | DI | Dagger Hilt 2.53 (KSP) |
-| Database | Room 2.6.1 (KSP) |
+| Database | Room 2.8.4 (KSP) |
 | HTTP | OkHttp 4.12 |
 | Background | WorkManager + CoroutineWorker |
 | Serialization | kotlinx.serialization 1.7.3 |
-| Preferences | DataStore Preferences |
+| Preferences | DataStore Preferences 1.2.1 |
 | Camera | CameraX 1.4.1 + ActivityResultContracts |
 | Audio | MediaRecorder (AAC, 44100Hz) |
 | Image compression | BitmapFactory + JPEG re-encode |
 | Video compression | GZIP (file bytes) — same as audio; broken MediaCodec transcode removed |
-| Video transcode (removed) | `transcodeVideo` + `compressVideoFile` — decode→H.264→MP4 mux; caused infinite loop hang |
 | Build | AGP 8.7.3 / Gradle 8.9 |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 36 |
-| Testing | JUnit 4.13.2, Robolectric 4.13 |
+| Testing | JUnit 4.13.2, Robolectric 4.16.1 |
 
 ---
 
@@ -198,12 +197,11 @@ QueueWorker.doWork()
   │    │
   │    ├─ Success (HTTP 200/201/204):
   │    │    └─ deleteById()  ← deletes DB record + payload file
-  │    │
-  │    ├─ Client error (4xx except 408, 429):
-  │    │    └─ Update status → FAILED, delete payload file (will never succeed)
-  │    │
-  │    └─ Server error / network error / timeout:
-  │         └─ Update status → PENDING (retry with backoff)
+  │    │    │    ├─ Client error (4xx except 408, 429):
+    │    │    └─ Update status → FAILED, payload file preserved for potential manual retry
+    │    │
+    │    └─ Server error / network error / timeout:
+    │         └─ Update status → PENDING (retry with backoff)
   │
   └─ If any failures: Result.retry() → WorkManager re-enqueues with backoff
 ```
@@ -546,6 +544,8 @@ Workflow: `.github/workflows/build-apk.yml`
 |---|---|
 | `KEYSTORE_BASE64` | `webhooknotesender-release.jks` in base64 |
 | `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Key alias (default: `webhooknotesender`) |
+| `KEY_PASSWORD` | Key password (default: same as `KEYSTORE_PASSWORD`) |
 
 ### Build script
 
@@ -573,10 +573,19 @@ Workflow: `.github/workflows/build-apk.yml`
 
 ### Releasing
 ```bash
-# Bump versionName and versionCode in app/build.gradle.kts
-git tag v0.4
-git push origin v0.4
-# CI handles: build → release
+# 1. Update CHANGELOG.md with the new version
+# 2. Commit changes
+git add CHANGELOG.md app/build.gradle.kts
+git commit -m "chore: bump version for v0.x"
+
+# 3. Create and push tag
+git tag v0.x
+git push origin v0.x
+
+# 4. CI/CD will:
+#    - Bump versionCode + versionName
+#    - Build signed release APK
+#    - Create GitHub Release with changelog
 ```
 
 ---

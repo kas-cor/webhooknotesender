@@ -9,8 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3-hotfix] — 2026-07-27
+
 ### Fixed
 - **Retry пустой JSON**: payload-файл больше не удаляется при 4xx ошибке. Ручной retry FAILED элемента больше не отправляет пустой JSON — данные сохраняются для повторной отправки
+
+### Changed
+- **Dependencies updated**: Room 2.8.4, DataStore 1.2.1, Robolectric 4.16.1, Navigation Compose 2.9.8, Coroutines 1.11.0, Coroutines Test 1.11.0
+- **GitHub Secrets**: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD — настроены для CI/CD
+
+### Version
+- versionCode 6 → 7
 
 ---
 
@@ -182,7 +191,8 @@ git push origin v0.4
 
 ---
 
-[Unreleased]: https://github.com/kas-cor/webhooknotesender/compare/v0.3...HEAD
+[Unreleased]: https://github.com/kas-cor/webhooknotesender/compare/v0.3-hotfix...HEAD
+[0.3-hotfix]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.3-hotfix
 [0.3.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.3
 [0.2.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.2
 [0.1.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.1
