@@ -9,13 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- `renameApk` Gradle task — APK output renamed to `WebhookNoteSender-v{version}-{variant}.apk`
-- Update check fix: handles both relative and absolute GitHub `Location` redirect headers
-- GitHub link added to About card in Settings
-
 ### Fixed
-- Update check URL malformed when GitHub returns absolute Location redirect
+- **Retry пустой JSON**: payload-файл больше не удаляется при 4xx ошибке. Ручной retry FAILED элемента больше не отправляет пустой JSON — данные сохраняются для повторной отправки
 
 ---
 
