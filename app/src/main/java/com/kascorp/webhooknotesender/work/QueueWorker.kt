@@ -125,10 +125,7 @@ class QueueWorker(
                     )
                     false // needs retry
                 } else {
-                    // Clean up payload file — 4xx errors will never succeed
-                    if (item.payloadFilePath != null) {
-                        PayloadFileHelper.deletePayload(applicationContext, item.payloadFilePath)
-                    }
+                    // Keep payload file for potential manual retry
                     queueRepository.updateStatus(
                         id = item.id,
                         status = QueueStatus.FAILED.name,

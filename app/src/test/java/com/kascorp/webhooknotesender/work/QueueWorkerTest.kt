@@ -476,7 +476,7 @@ class QueueWorkerTest {
 
     @Test
     fun `doWork does not delete payload file on permanent client error`() = runTest {
-        // given — item with file fails with 4xx client error (no retry)
+        // given — item with file fails with 4xx client error (no retry, but file preserved for future manual retry)
         every { PayloadFileHelper.loadPayload(context, "payload_uuid.json") } returns testPayload
         coEvery { queueRepository.getPendingItems() } returns listOf(testItemWithFile)
         coEvery { queueRepository.updateStatus(any(), any(), any(), any()) } returns Unit
@@ -493,12 +493,12 @@ class QueueWorkerTest {
         val worker = createWorker()
         val result = worker.doWork()
 
-        // then — file is deleted on permanent failure (4xx will never succeed)
+        // then — file is preserved for potential manual retry
         assert(result == ListenableWorker.Result.success()) {
             "Expected Result.success() (4xx is not retried) but got $result"
         }
         verify(exactly = 1) { PayloadFileHelper.loadPayload(context, "payload_uuid.json") }
-        verify(exactly = 1) { PayloadFileHelper.deletePayload(context, "payload_uuid.json") }
+        verify(exactly = 0) { PayloadFileHelper.deletePayload(context, any()) }
         coVerify(exactly = 1) {
             queueRepository.updateStatus(3L, QueueStatus.FAILED.name, 1, "HTTP 400: Bad Request")
         }
