@@ -41,5 +41,8 @@ logcat.txt
 # Gradle
 !gradle/wrapper/gradle-wrapper.jar
 
+# MimoCode AI agent artifacts
+.mimocode/
+
 # Kotlin daemon sessions
 .kotlin/
