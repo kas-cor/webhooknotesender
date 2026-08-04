@@ -145,6 +145,9 @@ class AudioRecorderService : Service() {
                 Toast.makeText(this@AudioRecorderService, getString(R.string.audio_recording_started), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
+            // Release the recorder if prepare()/start() failed after allocation
+            mediaRecorder?.release()
+            mediaRecorder = null
             Log.e(TAG, "Failed to start recording: ${e.message}", e)
             mainHandler.post {
                 Toast.makeText(this@AudioRecorderService, "${getString(R.string.error_recording)}: ${e.message}", Toast.LENGTH_SHORT).show()

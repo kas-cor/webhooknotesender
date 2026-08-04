@@ -53,16 +53,26 @@ class MediaCompressor @Inject constructor() {
 
     fun compressImageBytes(data: ByteArray, quality: Int): ByteArray {
         val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+            ?: return ByteArray(0)
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-        return outputStream.toByteArray()
+        try {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            return outputStream.toByteArray()
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     fun compressImageFile(file: File, quality: Int): ByteArray {
         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+            ?: return ByteArray(0)
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-        return outputStream.toByteArray()
+        try {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            return outputStream.toByteArray()
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     fun gzipCompress(data: ByteArray): ByteArray {

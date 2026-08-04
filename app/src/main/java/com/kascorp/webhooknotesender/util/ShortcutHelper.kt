@@ -10,6 +10,7 @@ import android.graphics.drawable.Icon
 import android.graphics.drawable.VectorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -26,6 +27,7 @@ class ShortcutHelper @Inject constructor(
 ) {
 
     companion object {
+        private const val TAG = "ShortcutHelper"
         private const val SHORTCUT_PREFIX = "shortcut_"
         private const val APP_SHORTCUT_PREFIX = "app_shortcut_"
         private const val PREFS_NAME = "shortcut_prefs"
@@ -48,10 +50,10 @@ class ShortcutHelper @Inject constructor(
         val shortcutId = "$SHORTCUT_PREFIX${profile.id}"
         try {
             ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
         try {
             ShortcutManagerCompat.removeLongLivedShortcuts(context, listOf(shortcutId))
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
         // Platform API (API 30+): enable then remove disabled shortcuts.
         // Xiaomi launcher doesn't remove disabled shortcuts via compat methods,
         // so we enable first, then remove via platform API.
@@ -61,7 +63,7 @@ class ShortcutHelper @Inject constructor(
                 manager?.enableShortcuts(listOf(shortcutId))
                 manager?.removeLongLivedShortcuts(listOf(shortcutId))
                 manager?.removeDynamicShortcuts(listOf(shortcutId))
-            } catch (_: Exception) { }
+            } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
         }
 
         val shortcut = createShortcutInfo(profile)
@@ -109,19 +111,19 @@ class ShortcutHelper @Inject constructor(
         // Method 1: Remove from dynamic shortcuts (all API levels)
         try {
             ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(shortcutId))
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
 
         // Method 2: Remove long-lived/pinned via compat library
         try {
             ShortcutManagerCompat.removeLongLivedShortcuts(context, listOf(shortcutId))
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
 
         // Method 3: Remove long-lived/pinned via platform API (API 30+)
         if (Build.VERSION.SDK_INT >= 30) {
             try {
                 val manager = context.getSystemService(ShortcutManager::class.java)
                 manager?.removeLongLivedShortcuts(listOf(shortcutId))
-            } catch (_: Exception) { }
+            } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
         }
 
         // Method 4: Disable as fallback — grays out the shortcut so tapping does nothing
@@ -131,7 +133,7 @@ class ShortcutHelper @Inject constructor(
                 listOf(shortcutId),
                 "Shortcut removed"
             )
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.w(TAG, "Shortcut operation failed", e) }
     }
 
     /**

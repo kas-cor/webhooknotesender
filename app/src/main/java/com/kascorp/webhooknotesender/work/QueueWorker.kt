@@ -27,6 +27,9 @@ class QueueWorker(
     companion object {
         const val WORK_NAME = "queue_processing"
 
+        /** Max send attempts before an item is permanently marked FAILED. */
+        const val MAX_ATTEMPTS = 10
+
         fun enqueue(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -117,13 +120,26 @@ class QueueWorker(
                 }
 
                 if (shouldRetry) {
-                    queueRepository.updateStatus(
-                        id = item.id,
-                        status = QueueStatus.PENDING.name,
-                        attempts = item.attempts + 1,
-                        lastError = error.message
-                    )
-                    false // needs retry
+                    val attemptCount = item.attempts + 1
+                    if (attemptCount >= MAX_ATTEMPTS) {
+                        // Exceeded retry budget — mark permanently FAILED.
+                        // Keep payload file for potential manual retry.
+                        queueRepository.updateStatus(
+                            id = item.id,
+                            status = QueueStatus.FAILED.name,
+                            attempts = attemptCount,
+                            lastError = error.message
+                        )
+                        true // no further automatic retry
+                    } else {
+                        queueRepository.updateStatus(
+                            id = item.id,
+                            status = QueueStatus.PENDING.name,
+                            attempts = attemptCount,
+                            lastError = error.message
+                        )
+                        false // needs retry
+                    }
                 } else {
                     // Keep payload file for potential manual retry
                     queueRepository.updateStatus(

@@ -7,7 +7,7 @@ import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.model.MediaType
-import com.kascorp.webhooknotesender.data.model.QueueStatus
+import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
 import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.data.local.PayloadFileHelper

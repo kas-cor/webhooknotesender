@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.LocaleList
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -94,7 +95,8 @@ class MainActivity : ComponentActivity() {
             val config = Configuration(resources.configuration)
             config.setLocales(LocaleList(locale))
             resources.updateConfiguration(config, resources.displayMetrics)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to apply locale directly", e)
         }
     }
 }
