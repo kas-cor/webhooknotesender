@@ -46,3 +46,6 @@ logcat.txt
 
 # Kotlin daemon sessions
 .kotlin/
+
+# uiautomator UI dump artifact
+view.xml
