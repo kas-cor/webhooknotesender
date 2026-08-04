@@ -230,6 +230,10 @@ class ProfilesViewModel @Inject constructor(
         return shortcutHelper.isShortcutCreated(profileId)
     }
 
+    suspend fun getBearerToken(profileId: Long): String? {
+        return profileRepository.getProfileById(profileId)?.bearerToken
+    }
+
     fun removeShortcut(profileId: Long) {
         shortcutHelper.removeShortcut(profileId)
     }

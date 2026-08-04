@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import com.kascorp.webhooknotesender.data.local.AppDatabase
 import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
@@ -21,7 +22,6 @@ import com.kascorp.webhooknotesender.util.DateTimeUtils
 import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -108,7 +108,7 @@ class ShortcutReceiverActivity : ComponentActivity() {
     }
 
     private fun loadProfileAndCapture() {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val profile = database.profileDao().getProfileById(profileId)
             if (profile == null) {
                 runOnUiThread {
@@ -183,6 +183,7 @@ class ShortcutReceiverActivity : ComponentActivity() {
 
     private fun startAudioRecording(profile: ProfileEntity) {
         // Launch MainActivity which will navigate to the AudioRecordingScreen
+        // Bearer token is loaded from Room/DataStore on the AudioRecordingScreen side
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("shortcut_audio", true)
@@ -190,14 +191,13 @@ class ShortcutReceiverActivity : ComponentActivity() {
             putExtra("profile_name", profile.name)
             putExtra("profile_prompt", profile.prompt)
             putExtra("profile_url", profile.url)
-            putExtra("bearer_token", profile.bearerToken)
         }
         startActivity(launchIntent)
         finish()
     }
 
     private fun processCapturedFile(file: File, mediaType: MediaType) {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val profile = currentProfile
                 if (profile == null) {
