@@ -55,7 +55,7 @@ object LocaleHelper {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE, language)
-            .commit()
+            .apply()
     }
 
     fun getSavedLanguage(context: Context): String {
