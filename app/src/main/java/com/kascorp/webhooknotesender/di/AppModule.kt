@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.kascorp.webhooknotesender.BuildConfig
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
 import com.kascorp.webhooknotesender.util.MediaCompressor
@@ -40,7 +41,11 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.BASIC
+            }
         }
 
         return OkHttpClient.Builder()

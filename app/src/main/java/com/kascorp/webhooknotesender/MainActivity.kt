@@ -70,14 +70,12 @@ class MainActivity : ComponentActivity() {
             val profileName = intent.getStringExtra("profile_name") ?: ""
             val profilePrompt = intent.getStringExtra("profile_prompt") ?: ""
             val profileUrl = intent.getStringExtra("profile_url") ?: ""
-            val bearerToken = intent.getStringExtra("bearer_token")
             if (profileId != -1L) {
                 pendingNavigationRoute = DetailScreen.AudioRecording.createRoute(
                     profileId = profileId,
                     profileName = profileName,
                     profilePrompt = profilePrompt,
                     profileUrl = profileUrl,
-                    bearerToken = bearerToken,
                     isFromShortcut = true
                 )
             }

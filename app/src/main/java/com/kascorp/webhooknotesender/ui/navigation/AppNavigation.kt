@@ -80,21 +80,19 @@ sealed class DetailScreen(val route: String) {
         fun createRoute(profileId: Long = -1L) = "profile_edit/$profileId"
     }
     data object AudioRecording : DetailScreen(
-        "audio_recording/{profileId}/{profileName}/{profilePrompt}/{profileUrl}/{bearerToken}?isFromShortcut={isFromShortcut}"
+        "audio_recording/{profileId}/{profileName}/{profilePrompt}/{profileUrl}?isFromShortcut={isFromShortcut}"
     ) {
         fun createRoute(
             profileId: Long,
             profileName: String,
             profilePrompt: String,
             profileUrl: String,
-            bearerToken: String?,
             isFromShortcut: Boolean = false
         ): String {
             val encodedName = Uri.encode(profileName)
             val encodedPrompt = Uri.encode(profilePrompt)
             val encodedUrl = Uri.encode(profileUrl)
-            val encodedToken = Uri.encode(bearerToken ?: "")
-            return "audio_recording/$profileId/$encodedName/$encodedPrompt/$encodedUrl/$encodedToken?isFromShortcut=$isFromShortcut"
+            return "audio_recording/$profileId/$encodedName/$encodedPrompt/$encodedUrl?isFromShortcut=$isFromShortcut"
         }
     }
 }
@@ -258,14 +256,13 @@ private fun AppNavigationContent(
                     onCreateProfile = {
                         navController.navigate(DetailScreen.ProfileEdit.createRoute())
                     },
-                    onAudioCapture = { id, name, prompt, url, token ->
+                    onAudioCapture = { id, name, prompt, url, _ ->
                         navController.navigate(
                             DetailScreen.AudioRecording.createRoute(
                                 profileId = id,
                                 profileName = name,
                                 profilePrompt = prompt,
-                                profileUrl = url,
-                                bearerToken = token
+                                profileUrl = url
                             )
                         )
                     }
@@ -306,18 +303,24 @@ private fun AppNavigationContent(
                     navArgument("profileName") { type = NavType.StringType },
                     navArgument("profilePrompt") { type = NavType.StringType },
                     navArgument("profileUrl") { type = NavType.StringType },
-                    navArgument("bearerToken") { type = NavType.StringType; defaultValue = "" },
                     navArgument("isFromShortcut") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val args = backStackEntry.arguments ?: return@composable
                 val isFromShortcut = args.getBoolean("isFromShortcut")
+                val profileId = args.getLong("profileId")
+                // Load bearerToken from Room/DataStore, never from navigation args
+                val profilesViewModel: ProfilesViewModel = hiltViewModel()
+                var bearerToken by remember { mutableStateOf<String?>(null) }
+                LaunchedEffect(profileId) {
+                    bearerToken = profilesViewModel.getBearerToken(profileId)
+                }
                 AudioRecordingScreen(
-                    profileId = args.getLong("profileId"),
+                    profileId = profileId,
                     profileName = Uri.decode(args.getString("profileName") ?: ""),
                     profilePrompt = Uri.decode(args.getString("profilePrompt") ?: ""),
                     profileUrl = Uri.decode(args.getString("profileUrl") ?: ""),
-                    bearerToken = Uri.decode(args.getString("bearerToken") ?: "").ifEmpty { null },
+                    bearerToken = bearerToken,
                     profileType = "audio",
                     onNavigateBack = {
                         if (isFromShortcut) {

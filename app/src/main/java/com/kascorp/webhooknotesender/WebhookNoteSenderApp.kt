@@ -18,9 +18,11 @@ import com.kascorp.webhooknotesender.util.LocaleHelper
 import com.kascorp.webhooknotesender.util.ShortcutHelper
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
 
@@ -53,11 +55,14 @@ class WebhookNoteSenderApp : Application(), Configuration.Provider {
         super.attachBaseContext(LocaleHelper.wrapContext(base))
     }
 
+    // Application-scoped coroutine scope for non-blocking initialization
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         QueueWorker.enqueue(this)
-        // Set up app shortcuts (long-press app icon) with top profiles
-        runBlocking(Dispatchers.IO) {
+        // Set up app shortcuts (long-press app icon) with top profiles — async, non-blocking
+        applicationScope.launch {
             val profiles = profileRepository.getTopProfiles(5).first()
             shortcutHelper.updateAppShortcuts(profiles)
         }
