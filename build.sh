@@ -77,7 +77,9 @@ build_release() {
     if $sign_with_debug; then
         if [ -f "$keystore" ]; then
             mv "$keystore" "${keystore}.bak"
-            trap 'mv "${keystore}.bak" "$keystore"' EXIT
+            # NB: trap references PROJECT_DIR (global), not the local $keystore,
+            # because local vars are out of scope when the trap fires on EXIT.
+            trap 'mv "${PROJECT_DIR}/webhooknotesender-release.jks.bak" "${PROJECT_DIR}/webhooknotesender-release.jks"' EXIT
         fi
 
         "$GRADLE" assembleRelease --no-daemon 2>&1
@@ -98,7 +100,7 @@ build_release() {
         local unsigned="$APK_PATH_RELEASE"
         local aligned="${unsigned%.*}-aligned.apk"
 
-        "$build_tools/zipalign" -v -p 4 "$unsigned" "$aligned" > /dev/null 2>&1
+        "$build_tools/zipalign" -f -v -p 4 "$unsigned" "$aligned" > /dev/null 2>&1
         "$build_tools/apksigner" sign \
             --ks "$debug_ks" \
             --ks-pass pass:android \

@@ -25,7 +25,6 @@ class LocaleHelperTest {
         every { context.getSharedPreferences("locale_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
         every { sharedPreferences.edit() } returns editor
         every { editor.putString(any(), any()) } returns editor
-        every { editor.commit() } returns true
     }
 
     @Test
@@ -36,7 +35,7 @@ class LocaleHelperTest {
         // then
         verify(exactly = 1) {
             editor.putString("language", "ru")
-            editor.commit()
+            editor.apply()
         }
     }
 
@@ -49,7 +48,7 @@ class LocaleHelperTest {
         // then
         verify(exactly = 1) { editor.putString("language", "ru") }
         verify(exactly = 1) { editor.putString("language", "en") }
-        verify(exactly = 2) { editor.commit() }
+        verify(exactly = 2) { editor.apply() }
     }
 
     @Test
@@ -59,7 +58,7 @@ class LocaleHelperTest {
 
         // then
         verify(exactly = 1) { editor.putString("language", "") }
-        verify(exactly = 1) { editor.commit() }
+        verify(exactly = 1) { editor.apply() }
     }
 
     @Test
