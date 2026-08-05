@@ -20,12 +20,12 @@
 
 | Component | Technology |
 |---|---|
-| Language | Kotlin 2.1.0 |
-| UI | Jetpack Compose + Material 3 (BOM 2024.12) |
+| Language | Kotlin 2.4.10 |
+| UI | Jetpack Compose + Material 3 (BOM 2026.06.01) |
 | Navigation | Navigation Compose 2.9.8 |
-| DI | Dagger Hilt 2.53 (KSP) |
+| DI | Dagger Hilt 2.60.1 (**KSP**, migrated from kapt in 0.4) |
 | Database | Room 2.8.4 (KSP) |
-| HTTP | OkHttp 4.12 |
+| HTTP | OkHttp 5.4.0 |
 | Background | WorkManager + CoroutineWorker |
 | Serialization | kotlinx.serialization 1.7.3 |
 | Preferences | DataStore Preferences 1.2.1 |
@@ -33,8 +33,9 @@
 | Audio | MediaRecorder (AAC, 44100Hz) |
 | Image compression | BitmapFactory + JPEG re-encode |
 | Video compression | GZIP (file bytes) — same as audio; broken MediaCodec transcode removed |
-| Build | AGP 8.7.3 / Gradle 8.9 |
-| minSdk / targetSdk / compileSdk | 26 / 35 / 36 |
+| Build | AGP 9.3.1 / Gradle 9.5.0 / compileSdk 37 |
+| Release build | R8 minify + shrinkResources enabled (APK ~2.5 MB, single classes.dex) |
+| minSdk / targetSdk / compileSdk | 26 / 35 / 37 |
 | Testing | JUnit 4.13.2, Robolectric 4.16.1 |
 
 ---
@@ -98,7 +99,7 @@ app/src/main/java/com/kascorp/webhooknotesender/
 │   │   │   └── QueueDao.kt               # CRUD + status updates + pending count + orphan cleanup
 │   │   └── entity/
 │   │       ├── ProfileEntity.kt          # id, name (UNIQUE), type, prompt, url,
-│   │       │                                bearerToken, compressEnabled, compressionQuality, useCount, useCount
+│   │       │                                bearerToken, compressEnabled, compressionQuality, useCount
 │   │       └── QueueItemEntity.kt        # id, profileName, url, bearerToken, jsonPayload,
 │   │                                        payloadFilePath, mediaType, status, attempts,
 │   │                                        lastError, createdAt
@@ -106,8 +107,9 @@ app/src/main/java/com/kascorp/webhooknotesender/
 │   │   ├── ProfileRepository.kt          # Delegates to ProfileDao
 │   │   └── QueueRepository.kt            # Delegates to QueueDao + PayloadFileHelper
 │   ├── remote/
-│   │   └── WebhookApi.kt                 # OkHttp POST with 30s/120s/120s timeouts
-│   │                                        Returns Result with WebhookException(code, shouldRetry)
+│   │   └── WebhookApi.kt                 # OkHttp POST with 30s/120s/120s timeouts; injects
+│   │                                        shared DI OkHttpClient (single source of HTTP
+│   │                                        config); returns Result<WebhookException>
 │   └── model/
 │       ├── MediaType.kt                  # IMAGE, AUDIO, VIDEO
 │       ├── QueueStatus.kt                # PENDING, SENDING, SENT, FAILED
@@ -331,6 +333,7 @@ Accept: application/json
 - Form state for create/edit with validation
 - `saveProfile()` — insert or update in Room, handles UNIQUE constraint; updates app shortcuts on rename
 - `deleteProfile()` — removes shortcut if exists, deletes from Room; updates app shortcuts
+- `getBearerToken(profileId)` — loads bearer token from Room (since 0.4 tokens are **not** passed via navigation args)
 - `createShortcut()` — `ShortcutHelper.requestPinShortcut()`
 - `isShortcutCreated()` / `removeShortcut()` — delegates to `ShortcutHelper`
 - `compressAndEncode()` — compresses via `MediaCompressor`, encodes via `Base64Encoder`
@@ -341,6 +344,7 @@ Accept: application/json
 ### `QueueWorker` (HiltWorker)
 - `doWork()` — processes all `PENDING` items
 - For each item: updates status to `SENDING` → loads payload (from file or DB) → sends via `WebhookApi` → updates result
+- Attempts are capped at `MAX_ATTEMPTS` (10); items exceeding the cap are permanently marked `FAILED` (no unbounded retries)
 - Returns `Result.retry()` if any item needs retry, `Result.success()` otherwise
 - Static `enqueue(context)` — creates `OneTimeWorkRequest` with `NetworkType.CONNECTED` constraint
 
@@ -375,7 +379,9 @@ Accept: application/json
 - Returns `CompressResult` with `data`, `encoding` (`"jpeg"` / `"gzip"`), `originalSize`, `compressedSize`
 
 ### `WebhookApi`
+- Injects the shared DI `OkHttpClient` (from `AppModule`) — no disconnected client since 0.4
 - OkHttp client with 30s connect / 120s read / 120s write timeouts
+- OkHttp logging: `BODY` in debug builds only, `BASIC` in release (prevents token/noise leakage)
 - `send(url, jsonPayload, bearerToken)` → `Result<String>`
 - Returns `WebhookException(shouldRetry)` for proper retry decision
 

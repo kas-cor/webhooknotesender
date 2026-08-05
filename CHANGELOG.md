@@ -203,16 +203,16 @@ Full-featured MVP as specified in the technical documentation.
 ```bash
 # 1. Update CHANGELOG.md with the new version
 # 2. Commit changes
-git add CHANGELOG.md
-git commit -m "chore: update changelog for v0.4"
+git add CHANGELOG.md app/build.gradle.kts
+git commit -m "chore: bump version for v0.x"
 
 # 3. Create and push tag
-git tag v0.4
-git push origin v0.4
+git tag v0.x
+git push origin v0.x
 
 # 4. CI/CD will:
 #    - Bump versionCode + versionName
-#    - Build signed release APK
+#    - Build signed, R8-minified release APK (~2.5 MB)
 #    - Create GitHub Release with changelog
 ```
 
