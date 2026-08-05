@@ -1,11 +1,3 @@
-# Keep Hilt
--keep class dagger.hilt.** { *; }
--keep class javax.inject.** { *; }
--keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
-
-# Keep Room entities
--keep class com.kascorp.webhooknotesender.data.local.entity.** { *; }
-
 # Keep kotlinx.serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
@@ -23,13 +15,8 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Keep OkHttp
--dontwarn okhttp3.**
--dontwarn okio.**
--keep class okhttp3.** { *; }
+# Keep Room entities
+-keep class com.kascorp.webhooknotesender.data.local.entity.** { *; }
 
-# Keep WorkManager
--keep class androidx.work.** { *; }
-
-# Keep CameraX
--keep class androidx.camera.** { *; }
+# Readable stack traces in crash reports
+-keepattributes SourceFile, LineNumberTable

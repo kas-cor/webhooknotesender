@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-05
+
+### Security
+- **Bearer token removed from navigation args**: token now loaded from Room via `ProfilesViewModel.getBearerToken(profileId)` on the audio recording screen — no more secret leakage into navigation routes, logs, or state dumps
+- **OkHttp logging tightened**: `BODY` level only in debug builds, `BASIC` in release (prevents secrets/noise in production logs)
+- **WebhookApi**: now injects the shared DI `OkHttpClient` instead of creating a disconnected client — single source of truth for HTTP configuration
+
+### Fixed
+- **ANR risk on startup**: `WebhookNoteSenderApp.onCreate` — replaced `runBlocking(IO)` with async `applicationScope.launch` (SupervisorJob)
+- **Coroutine leaks in shortcuts**: `ShortcutReceiverActivity` — `CoroutineScope(IO)` replaced with `lifecycleScope` for `loadProfileAndCapture()` and `processCapturedFile()`
+- **MediaRecorder leak**: `AudioRecorderService` now releases recorder when `prepare()`/`start()` fails
+- **Bitmap memory**: `MediaCompressor` recycles Bitmap after JPEG compress and guards against null decode
+- **Unbounded retries**: `QueueWorker` caps attempts at `MAX_ATTEMPTS` (10), then marks item permanently `FAILED`
+- **Blocking I/O in locale**: `LocaleHelper` uses `apply()` instead of blocking `commit()`
+- Logged exceptions in previously empty `catch` blocks (`ShortcutHelper`, `MainActivity`)
+- Removed duplicate `QueueStatus` enum (single source in `data.local.entity.QueueStatus`)
+
+### Changed
+- **Build system migrated**: Hilt compiler from kapt → **KSP**, Gradle 8.9 → **9.5.0**, AGP 8.7.3 → **9.3.1**, compileSdk 36 → **37**
+- **R8/minification tuned**: removed redundant broad keep-rules (Hilt/OkHttp/WorkManager/CameraX ship their own consumer rules) — release APK shrunk to **2.5 MB** (was 3.2 MB; debug is 23 MB), single `classes.dex`, no more Xiaomi antivirus warning about oversized DEX
+- Dependencies updated: Kotlin **2.4.10**, Compose BOM **2026.06**, Hilt **2.60.1**, OkHttp **5.4.0**, Room 2.8.4, Lifecycle 2.11.0, Navigation Compose 2.9.8, Coroutines 1.11.0, core-ktx 1.19.0, KSP 2.3.10, test-junit 1.3.0
+
+### Version
+- versionCode 8 → 9
+
+---
+
 ## [0.3-hotfix] — 2026-07-27
 
 ### Fixed
@@ -191,7 +218,8 @@ git push origin v0.4
 
 ---
 
-[Unreleased]: https://github.com/kas-cor/webhooknotesender/compare/v0.3-hotfix...HEAD
+[Unreleased]: https://github.com/kas-cor/webhooknotesender/compare/v0.4...HEAD
+[0.4.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.4
 [0.3-hotfix]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.3-hotfix
 [0.3.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.3
 [0.2.0]: https://github.com/kas-cor/webhooknotesender/releases/tag/v0.2
