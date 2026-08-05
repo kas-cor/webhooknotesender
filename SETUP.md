@@ -61,8 +61,8 @@ After setting up secrets, CI/CD will work automatically:
    - `locales` — validate string key parity between EN and RU
    - `build-debug` — build debug APK
 
-2. **Push tag `v*`** (e.g., `v0.3-hotfix`) — additionally:
-   - `build-release` — signed release build
+2. **Push tag `v*`** (e.g., `v0.4`) — additionally:
+   - `build-release` — signed release build (R8-minified)
    - `release` — create GitHub Release with APK
 
 ### 5. How to create a release
@@ -72,14 +72,14 @@ After setting up secrets, CI/CD will work automatically:
 git status
 
 # 2. Create a new version tag
-git tag v0.3-hotfix
+git tag v0.4
 
 # 3. Push the tag
-git push origin v0.3-hotfix
+git push origin v0.4
 
 # 4. CI/CD will automatically:
 #    - Increment versionCode
-#    - Build a signed APK
+#    - Build a signed, R8-minified APK (~2.5 MB)
 #    - Create a GitHub Release with changelog and APK
 ```
 
@@ -153,6 +153,12 @@ Make sure:
 
 `build.sh` has a fallback: if the keystore is not found or `KEYSTORE_PASSWORD` is not set, the APK is signed with the Android SDK debug keystore.  
 For production signing, always provide `KEYSTORE_PASSWORD`.
+
+### Release APK is larger than expected / DEX warning (Xiaomi)
+
+Since v0.4 the release build enables **R8 minification** (`isMinifyEnabled` + `isShrinkResources`) — APK ~2.5 MB with a single `classes.dex`. If the APK is still big, make sure you build the **release** variant (`./build.sh --release`), not debug (23 MB).
+
+> **Note:** Hilt/OkHttp/WorkManager/CameraX ship their own consumer rules — no broad keep-rules needed in `proguard-rules.pro`.
 
 ---
 

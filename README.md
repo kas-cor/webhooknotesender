@@ -1,10 +1,10 @@
 # WebhookNoteSender 🚀
 
 [![CI](https://github.com/kas-cor/webhooknotesender/actions/workflows/build-apk.yml/badge.svg)](https://github.com/kas-cor/webhooknotesender/actions/workflows/build-apk.yml)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.1.0-purple)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Compose-BOM%202024.12.01-green)](https://developer.android.com/jetpack/compose)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.4.10-purple)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Compose-BOM%202026.06.01-green)](https://developer.android.com/jetpack/compose)
 [![Material3](https://img.shields.io/badge/Material%203-dynamic-blue)](https://m3.material.io/)
-[![API](https://img.shields.io/badge/minSdk-26%20%7C%20target-35-orange)](app/build.gradle.kts)
+[![API](https://img.shields.io/badge/minSdk-26%20%7C%20compile-37-orange)](app/build.gradle.kts)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Русский](https://img.shields.io/badge/README-%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-blue)](README_ru.md)
 
@@ -111,21 +111,22 @@ webhooknotesender/
 
 | Component | Technology |
 |---|---|
-| **Language** | Kotlin 2.1.0 |
-| **UI** | Jetpack Compose + Material 3 (BOM 2024.12) |
-| **Navigation** | Navigation Compose (Bottom Nav) |
-| **DI** | Dagger Hilt 2.53 |
+| **Language** | Kotlin 2.4.10 |
+| **UI** | Jetpack Compose + Material 3 (BOM 2026.06.01) |
+| **Navigation** | Navigation Compose 2.9.8 (Bottom Nav) |
+| **DI** | Dagger Hilt 2.60.1 (KSP) |
 | **Database** | Room 2.8.4 (KSP) |
-| **HTTP Client** | OkHttp 4.12 |
+| **HTTP Client** | OkHttp 5.4.0 |
 | **Background** | WorkManager + CoroutineWorker |
 | **Serialization** | kotlinx.serialization 1.7.3 |
 | **Preferences** | DataStore Preferences 1.2.1 |
 | **Camera** | CameraX 1.4.1 + ActivityResultContracts |
 | **Audio** | MediaRecorder + Foreground Service |
 | **Video Compression** | GZIP (file bytes) — transcoding removed |
-| **Navigation** | Navigation Compose 2.9.8 |
 | **Coroutines** | Kotlinx Coroutines 1.11.0 |
-| **minSdk / targetSdk / compileSdk** | 26 / 35 / 36 |
+| **Build** | AGP 9.3.1 / Gradle 9.5.0 / compileSdk 37 |
+| **Release build** | R8 minify + resource shrink (APK ~2.5 MB) |
+| **minSdk / targetSdk / compileSdk** | 26 / 35 / 37 |
 | **Testing** | JUnit 4.13.2, Robolectric 4.16.1 |
 
 ---
@@ -179,8 +180,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### Release Build
 
+Release builds are **minified with R8** (`isMinifyEnabled` + `isShrinkResources`) — APK size dropped from 3.2 MB to **~2.5 MB**, single `classes.dex` (no Xiaomi antivirus warning).
+
 ```bash
 # Release with debug keystore (no KEYSTORE_PASSWORD env var)
+export KEYSTORE_PATH="$(pwd)/webhooknotesender-release.jks"  # optional, default: ../webhooknotesender-release.jks
 ./build.sh --release
 
 # Release with production keystore
@@ -378,6 +382,7 @@ cp app/src/main/res/values/strings.xml app/src/main/res/values-de/strings.xml
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.4** | 2026-08-05 | Build migration (Gradle 9.5, Kotlin 2.4, Hilt KSP), R8 minification (APK 2.5 MB), security fixes (token out of nav args, retry cap at 10), dependency updates |
 | **v0.3-hotfix** | 2026-07-27 | Retry empty JSON fix, dependency updates (Room 2.8.4, Nav 2.9.8, Coroutines 1.11.0), GitHub Secrets setup |
 | **v0.3** | 2026-07-19 | App Shortcuts (long-press), use_count tracking, shortcut lifecycle fixes, video transcode removed |
 | v0.2 | 2026-07-18 | Initial feature release: profile CRUD, media capture, queue with WorkManager, shortcuts, bilingual UI |

@@ -1,10 +1,10 @@
 # WebhookNoteSender 🚀
 
 [![CI](https://github.com/kas-cor/webhooknotesender/actions/workflows/build-apk.yml/badge.svg)](https://github.com/kas-cor/webhooknotesender/actions/workflows/build-apk.yml)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.1.0-purple)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Compose-BOM%202024.12.01-green)](https://developer.android.com/jetpack/compose)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.4.10-purple)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Compose-BOM%202026.06.01-green)](https://developer.android.com/jetpack/compose)
 [![Material3](https://img.shields.io/badge/Material%203-dynamic-blue)](https://m3.material.io/)
-[![API](https://img.shields.io/badge/minSdk-26%20%7C%20target-35-orange)](app/build.gradle.kts)
+[![API](https://img.shields.io/badge/minSdk-26%20%7C%20compile-37-orange)](app/build.gradle.kts)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![English](https://img.shields.io/badge/README-English-blue)](README.md)
 
@@ -90,21 +90,22 @@ webhooknotesender/
 
 | Компонент | Технология |
 |---|---|
-| **Язык** | Kotlin 2.1.0 |
-| **UI** | Jetpack Compose + Material 3 (BOM 2024.12) |
-| **Навигация** | Navigation Compose (Bottom Nav) |
-| **DI** | Dagger Hilt 2.53 |
+| **Язык** | Kotlin 2.4.10 |
+| **UI** | Jetpack Compose + Material 3 (BOM 2026.06.01) |
+| **Навигация** | Navigation Compose 2.9.8 (Bottom Nav) |
+| **DI** | Dagger Hilt 2.60.1 (KSP) |
 | **База данных** | Room 2.8.4 (KSP) |
-| **HTTP** | OkHttp 4.12 |
+| **HTTP** | OkHttp 5.4.0 |
 | **Фон** | WorkManager + CoroutineWorker |
 | **Сериализация** | kotlinx.serialization 1.7.3 |
 | **Настройки** | DataStore Preferences 1.2.1 |
 | **Камера** | CameraX 1.4.1 + ActivityResultContracts |
 | **Аудио** | MediaRecorder + Foreground Service |
 | **Сжатие видео** | GZIP (файл) — транскодинг удалён |
-| **Навигация** | Navigation Compose 2.9.8 |
 | **Coroutines** | Kotlinx Coroutines 1.11.0 |
-| **minSdk / targetSdk / compileSdk** | 26 / 35 / 36 |
+| **Сборка** | AGP 9.3.1 / Gradle 9.5.0 / compileSdk 37 |
+| **Release-сборка** | R8 minify + shrink ресурсов (APK ~2.5 МБ) |
+| **minSdk / targetSdk / compileSdk** | 26 / 35 / 37 |
 | **Тестирование** | JUnit 4.13.2, Robolectric 4.16.1 |
 
 ---
@@ -155,8 +156,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### Release сборка
 
+Release-сборки **минифицируются R8** (`isMinifyEnabled` + `isShrinkResources`) — размер APK снизился с 3.2 МБ до **~2.5 МБ**, один `classes.dex` (нет предупреждения антивируса Xiaomi).
+
 ```bash
 # Release с debug-ключом (без KEYSTORE_PASSWORD)
+export KEYSTORE_PATH="$(pwd)/webhooknotesender-release.jks"  # опционально, по умолч.: ../webhooknotesender-release.jks
 ./build.sh --release
 
 # Release с продакшн-ключом
@@ -354,6 +358,7 @@ cp app/src/main/res/values/strings.xml app/src/main/res/values-de/strings.xml
 
 | Версия | Дата | Что нового |
 |---|---|---|
+| **v0.4** | 2026-08-05 | Миграция сборки (Gradle 9.5, Kotlin 2.4, Hilt KSP), R8-минификация (APK 2.5 МБ), фиксы безопасности (токен убран из nav-аргументов, лимит повторов 10), обновление зависимостей |
 | **v0.3-hotfix** | 2026-07-27 | Исправление пустого JSON при retry, обновление зависимостей (Room 2.8.4, Nav 2.9.8, Coroutines 1.11.0), настройка GitHub Secrets |
 | **v0.3** | 2026-07-19 | Ярлыки приложения (long-press), счётчик use_count, фиксы жизненного цикла ярлыков, удалён транскодинг видео |
 | v0.2 | 2026-07-18 | Первый полноценный релиз: CRUD профилей, захват медиа, очередь с WorkManager, ярлыки, двуязычный UI |
