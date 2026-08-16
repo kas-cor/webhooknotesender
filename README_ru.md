@@ -4,7 +4,7 @@
 [![Kotlin](https://img.shields.io/badge/kotlin-2.4.10-purple)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Compose-BOM%202026.06.01-green)](https://developer.android.com/jetpack/compose)
 [![Material3](https://img.shields.io/badge/Material%203-dynamic-blue)](https://m3.material.io/)
-[![API](https://img.shields.io/badge/minSdk-26%20%7C%20compile-37-orange)](app/build.gradle.kts)
+[![API](https://img.shields.io/badge/minSdk%2026%20%7C%20compile%2037-orange)](app/build.gradle.kts)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![English](https://img.shields.io/badge/README-English-blue)](README.md)
 
