@@ -6,6 +6,7 @@ import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
+import com.kascorp.webhooknotesender.data.repository.MediaQueueHelper
 import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.util.Base64Encoder
@@ -48,6 +49,7 @@ class ProfilesViewModelTest {
     private lateinit var application: Application
     private lateinit var profileRepository: ProfileRepository
     private lateinit var queueRepository: QueueRepository
+    private lateinit var mediaQueueHelper: MediaQueueHelper
     private lateinit var base64Encoder: Base64Encoder
     private lateinit var mediaCompressor: MediaCompressor
     private lateinit var shortcutHelper: ShortcutHelper
@@ -84,6 +86,13 @@ class ProfilesViewModelTest {
         mediaCompressor = mockk(relaxed = true)
         shortcutHelper = mockk(relaxed = true)
         json = Json { ignoreUnknownKeys = true }
+        mediaQueueHelper = MediaQueueHelper(
+            context = application,
+            queueRepository = queueRepository,
+            profileRepository = profileRepository,
+            shortcutHelper = shortcutHelper,
+            json = json
+        )
 
         // Mock getString for validation resources (tests check content, not just null)
         every { application.getString(R.string.url_http_warning) } returns "Using HTTP is not secure. Consider using HTTPS."
@@ -106,10 +115,10 @@ class ProfilesViewModelTest {
         return ProfilesViewModel(
             application = application,
             profileRepository = profileRepository,
-            queueRepository = queueRepository,
             base64Encoder = base64Encoder,
             mediaCompressor = mediaCompressor,
             shortcutHelper = shortcutHelper,
+            mediaQueueHelper = mediaQueueHelper,
             json = json
         )
     }

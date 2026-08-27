@@ -99,7 +99,8 @@ app/src/main/java/com/kascorp/webhooknotesender/
 │   │   │   └── QueueDao.kt               # CRUD + status updates + pending count + orphan cleanup
 │   │   └── entity/
 │   │       ├── ProfileEntity.kt          # id, name (UNIQUE), type, prompt, url,
-│   │       │                                bearerToken, compressEnabled, compressionQuality, useCount
+│   │       │                                bearerToken, compressEnabled, compressionQuality, useCount,
+│       │                                watchUri, watchFolderName
 │   │       └── QueueItemEntity.kt        # id, profileName, url, bearerToken, jsonPayload,
 │   │                                        payloadFilePath, mediaType, status, attempts,
 │   │                                        lastError, createdAt
@@ -115,7 +116,8 @@ app/src/main/java/com/kascorp/webhooknotesender/
 │       ├── QueueStatus.kt                # PENDING, SENDING, SENT, FAILED
 │       └── ThemeMode.kt                  # LIGHT, DARK, SYSTEM
 ├── work/
-│   └── QueueWorker.kt                    # HiltWorker, processes pending items, updates status
+│   ├── QueueWorker.kt                    # HiltWorker, processes pending items, updates status
+│   └── FolderWatcherService.kt           # SAF folder polling and deferred source deletion
 ├── ui/
 │   ├── theme/
 │   │   ├── Color.kt                      # Light/Dark palettes + status colors
@@ -251,6 +253,8 @@ User long-presses app icon (launcher)
 | `compress_enabled` | Boolean | Enable media compression (default `true`) |
 | `compression_quality` | Int | JPEG quality 0–100 / (default `70`); for audio/video — ignored (gzip only) |
 | `use_count` | Int | Usage frequency counter for app shortcuts ranking (default `0`) |
+| `watch_uri` | String? | Persisted SAF tree URI |
+| `watch_folder_name` | String? | Display name of watched folder |
 
 ### Table `queue_items`
 
@@ -267,6 +271,7 @@ User long-presses app icon (launcher)
 | `attempts` | Int | Retry count (default 0) |
 | `last_error` | String? | Last error message |
 | `created_at` | Long | Unix timestamp (ms) |
+| `source_uri` | String? | Source SAF document URI; deleted after successful delivery |
 
 ### Migrations
 
@@ -276,6 +281,8 @@ User long-presses app icon (launcher)
 | 2 | 3 | Clear oversized json_payload (>100KB), delete SENT items |
 | 3 | 4 | Add `compress_enabled INTEGER` and `compression_quality INTEGER` to `profiles` |
 | 4 | 5 | Add `use_count INTEGER NOT NULL DEFAULT 0` to `profiles` |
+| 5 | 6 | Add watched-folder columns to `profiles` |
+| 6 | 7 | Add `source_uri` to `queue_items` |
 
 ---
 
@@ -345,6 +352,7 @@ Accept: application/json
 - `doWork()` — processes all `PENDING` items
 - For each item: updates status to `SENDING` → loads payload (from file or DB) → sends via `WebhookApi` → updates result
 - Attempts are capped at `MAX_ATTEMPTS` (10); items exceeding the cap are permanently marked `FAILED` (no unbounded retries)
+  - **Note:** `MAX_ATTEMPTS` applies only when `shouldRetry == true` (5xx, 408, 429, network/timeout). Client errors (4xx except 408/429) are marked `FAILED` **immediately** on the first attempt — the retry budget is never spent on them
 - Returns `Result.retry()` if any item needs retry, `Result.success()` otherwise
 - Static `enqueue(context)` — creates `OneTimeWorkRequest` with `NetworkType.CONNECTED` constraint
 

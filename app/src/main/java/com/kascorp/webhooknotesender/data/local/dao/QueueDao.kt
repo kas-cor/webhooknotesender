@@ -53,4 +53,7 @@ interface QueueDao {
 
     @Query("SELECT payload_file_path FROM queue_items")
     suspend fun getAllPayloadFilePaths(): List<String?>
+
+    @Query("SELECT * FROM queue_items WHERE source_uri IS NOT NULL")
+    suspend fun getItemsWithSourceUri(): List<QueueItemEntity>
 }

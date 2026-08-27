@@ -42,6 +42,9 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles ORDER BY use_count DESC LIMIT :limit")
     fun getTopProfiles(limit: Int): Flow<List<ProfileEntity>>
 
+    @Query("SELECT * FROM profiles WHERE watch_uri IS NOT NULL AND watch_uri != '' ORDER BY name ASC")
+    fun getWatchedProfiles(): Flow<List<ProfileEntity>>
+
     @Query("UPDATE profiles SET use_count = use_count + 1 WHERE id = :id")
     suspend fun incrementUseCount(id: Long)
 }

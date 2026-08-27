@@ -3,19 +3,17 @@ package com.kascorp.webhooknotesender.ui.profiles
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
-import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
 import com.kascorp.webhooknotesender.data.model.MediaType
-import com.kascorp.webhooknotesender.data.local.entity.QueueStatus
+import com.kascorp.webhooknotesender.data.repository.MediaQueueHelper
 import com.kascorp.webhooknotesender.data.repository.ProfileRepository
-import com.kascorp.webhooknotesender.data.repository.QueueRepository
-import com.kascorp.webhooknotesender.data.local.PayloadFileHelper
 import com.kascorp.webhooknotesender.util.Base64Encoder
 import com.kascorp.webhooknotesender.util.DateTimeUtils
 import com.kascorp.webhooknotesender.util.MediaCompressor
 import com.kascorp.webhooknotesender.util.ShortcutHelper
-import com.kascorp.webhooknotesender.work.QueueWorker
+import com.kascorp.webhooknotesender.work.FolderWatcherService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,7 +46,9 @@ data class ProfileFormState(
     val isTesting: Boolean = false,
     val testResult: String? = null,
     val compressEnabled: Boolean = true,
-    val compressionQuality: Int = 70
+    val compressionQuality: Int = 70,
+    val watchUri: String? = null,
+    val watchFolderName: String? = null
 )
 
 data class ProfileEditState(
@@ -60,10 +60,10 @@ data class ProfileEditState(
 class ProfilesViewModel @Inject constructor(
     private val application: Application,
     private val profileRepository: ProfileRepository,
-    private val queueRepository: QueueRepository,
     val base64Encoder: Base64Encoder,
     private val mediaCompressor: MediaCompressor,
     private val shortcutHelper: ShortcutHelper,
+    private val mediaQueueHelper: MediaQueueHelper,
     private val json: Json
 ) : AndroidViewModel(application) {
 
@@ -99,7 +99,9 @@ class ProfilesViewModel @Inject constructor(
                     url = profile.url,
                     bearerToken = profile.bearerToken ?: "",
                     compressEnabled = profile.compressEnabled,
-                    compressionQuality = profile.compressionQuality
+                    compressionQuality = profile.compressionQuality,
+                    watchUri = profile.watchUri,
+                    watchFolderName = profile.watchFolderName
                 )
             }
         }
@@ -131,6 +133,14 @@ class ProfilesViewModel @Inject constructor(
 
     fun updateCompressionQuality(quality: Int) {
         _formState.value = _formState.value.copy(compressionQuality = quality.coerceIn(1, 100))
+    }
+
+    fun updateWatchFolder(uri: String, folderName: String) {
+        _formState.value = _formState.value.copy(watchUri = uri, watchFolderName = folderName)
+    }
+
+    fun clearWatchFolder() {
+        _formState.value = _formState.value.copy(watchUri = null, watchFolderName = null)
     }
 
     fun validate(): Boolean {
@@ -182,7 +192,9 @@ class ProfilesViewModel @Inject constructor(
                         url = state.url.trim(),
                         bearerToken = state.bearerToken.trim().ifEmpty { null },
                         compressEnabled = state.compressEnabled,
-                        compressionQuality = state.compressionQuality
+                        compressionQuality = state.compressionQuality,
+                        watchUri = state.watchUri,
+                        watchFolderName = state.watchFolderName
                     )
                     profileRepository.update(profile)
                     // Remove stale shortcut entry so it can be re-created with updated info
@@ -198,10 +210,13 @@ class ProfilesViewModel @Inject constructor(
                         url = state.url.trim(),
                         bearerToken = state.bearerToken.trim().ifEmpty { null },
                         compressEnabled = state.compressEnabled,
-                        compressionQuality = state.compressionQuality
+                        compressionQuality = state.compressionQuality,
+                        watchUri = state.watchUri,
+                        watchFolderName = state.watchFolderName
                     )
                     profileRepository.insert(profile)
                 }
+                startFolderWatcher()
                 onSuccess()
             } catch (e: Exception) {
                 _formState.value = _formState.value.copy(
@@ -219,6 +234,8 @@ class ProfilesViewModel @Inject constructor(
             // Update app shortcuts to remove the deleted profile
             val topProfiles = profileRepository.getTopProfiles(5).first()
             shortcutHelper.updateAppShortcuts(topProfiles)
+            // Restart watcher so it stops if the last watched folder was removed
+            startFolderWatcher()
         }
     }
 
@@ -239,22 +256,7 @@ class ProfilesViewModel @Inject constructor(
     }
 
     fun buildJsonPayload(profile: ProfileEntity, base64Data: String, encoding: String? = null): String {
-        val messageMap = mutableMapOf(
-            "name" to JsonPrimitive(profile.name),
-            "prompt" to JsonPrimitive(profile.prompt),
-            "datetime" to JsonPrimitive(DateTimeUtils.nowUtcIso8601()),
-            "type" to JsonPrimitive(profile.type),
-            "data" to JsonPrimitive(base64Data)
-        )
-        if (encoding != null) {
-            messageMap["encoding"] = JsonPrimitive(encoding)
-        }
-        val payload = JsonObject(
-            mapOf(
-                "messages" to JsonArray(listOf(JsonObject(messageMap)))
-            )
-        )
-        return json.encodeToString(JsonObject.serializer(), payload)
+        return mediaQueueHelper.buildJsonPayload(profile, base64Data, encoding)
     }
 
     data class CompressAndEncodeResult(
@@ -280,27 +282,21 @@ class ProfilesViewModel @Inject constructor(
 
     fun enqueueCapturedMedia(profile: ProfileEntity, base64Data: String, encoding: String? = null) {
         viewModelScope.launch {
-            val payload = buildJsonPayload(profile, base64Data, encoding)
-            // Save payload to file FIRST (before DB insert) to avoid race condition:
-            // QueueWorker could pick up the item before the payload file is saved.
-            val fileName = PayloadFileHelper.savePayload(application, payload)
-            val queueItem = QueueItemEntity(
-                profileName = profile.name,
-                url = profile.url,
-                bearerToken = profile.bearerToken,
-                jsonPayload = "",
-                payloadFilePath = fileName,
-                mediaType = profile.type,
-                status = QueueStatus.PENDING.name
-            )
-            queueRepository.insert(queueItem)
-            // Trigger queue processing
-            QueueWorker.enqueue(application)
-            // Track usage for app shortcuts ranking
-            profileRepository.incrementUseCount(profile.id)
-            // Update app shortcuts (long-press app icon) with new rankings
-            val topProfiles = profileRepository.getTopProfiles(5).first()
-            shortcutHelper.updateAppShortcuts(topProfiles)
+            mediaQueueHelper.enqueue(profile, base64Data, encoding)
+        }
+    }
+
+    /**
+     * Starts the folder watcher foreground service so that profiles with a
+     * configured watch folder are monitored. Safe to call repeatedly — the
+     * service shuts itself down when no watched folders remain.
+     */
+    private fun startFolderWatcher() {
+        try {
+            FolderWatcherService.start(application)
+        } catch (e: Exception) {
+            // e.g. ForegroundServiceStartNotAllowedException when started from background
+            Log.w("ProfilesViewModel", "Failed to start folder watcher", e)
         }
     }
 

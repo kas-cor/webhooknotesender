@@ -71,6 +71,8 @@ class QueueRepository @Inject constructor(
         queueDao.deleteSentItemsOlderThan(beforeTimestamp)
     }
 
+    suspend fun getItemsWithSourceUri(): List<QueueItemEntity> = queueDao.getItemsWithSourceUri()
+
     suspend fun cleanupOrphanedPayloads() {
         val activeFiles = queueDao.getAllPayloadFilePaths()
             .mapNotNull { it }
