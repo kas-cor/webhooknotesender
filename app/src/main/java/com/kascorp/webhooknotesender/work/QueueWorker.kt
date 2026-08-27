@@ -1,6 +1,7 @@
 package com.kascorp.webhooknotesender.work
 
 import android.content.Context
+import android.net.Uri
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -110,6 +111,13 @@ class QueueWorker(
                     PayloadFileHelper.deletePayload(applicationContext, item.payloadFilePath)
                 }
                 queueRepository.markAsSent(item.id)
+                if (item.sourceUri != null) {
+                    try {
+                        applicationContext.contentResolver.delete(Uri.parse(item.sourceUri), null, null)
+                    } catch (_: Exception) {
+                        // The source may already have been removed or its SAF grant revoked.
+                    }
+                }
                 true // success, no retry needed
             },
             onFailure = { error ->

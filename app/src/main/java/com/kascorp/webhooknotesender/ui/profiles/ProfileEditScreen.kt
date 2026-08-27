@@ -1,5 +1,12 @@
 package com.kascorp.webhooknotesender.ui.profiles
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
@@ -47,8 +55,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.kascorp.webhooknotesender.R
 import com.kascorp.webhooknotesender.data.local.entity.ProfileEntity
 
@@ -174,6 +184,15 @@ fun ProfileEditScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
+            // Watched folder
+            Spacer(modifier = Modifier.height(16.dp))
+            WatchedFolderCard(
+                watchUri = formState.watchUri,
+                watchFolderName = formState.watchFolderName,
+                onFolderPicked = { uri, name -> viewModel.updateWatchFolder(uri, name) },
+                onClear = { viewModel.clearWatchFolder() }
+            )
+
             // Compression settings
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -259,6 +278,104 @@ fun ProfileEditScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun WatchedFolderCard(
+    watchUri: String?,
+    watchFolderName: String?,
+    onFolderPicked: (String, String) -> Unit,
+    onClear: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // Grant not persistable — the folder still works for the current session
+            }
+            val displayName = context.contentResolver.query(
+                DocumentsContract.buildDocumentUriUsingTree(
+                    uri,
+                    DocumentsContract.getTreeDocumentId(uri)
+                ),
+                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }?.takeUnless { it.isNullOrBlank() }
+                ?: uri.lastPathSegment
+                ?: uri.toString()
+            onFolderPicked(uri.toString(), displayName)
+
+            // Ask for notification permission so the user can see the watcher is running
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.FolderOpen,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.watch_folder),
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (watchUri == null) {
+                Text(
+                    text = stringResource(R.string.watch_folder_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = { folderPickerLauncher.launch(null) }) {
+                    Text(stringResource(R.string.choose_folder))
+                }
+            } else {
+                Text(
+                    text = watchFolderName ?: watchUri,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = onClear) {
+                    Text(stringResource(R.string.stop_watching))
+                }
+            }
         }
     }
 }

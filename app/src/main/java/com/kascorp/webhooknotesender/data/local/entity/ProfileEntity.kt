@@ -35,5 +35,11 @@ data class ProfileEntity(
     val compressionQuality: Int = 70,
 
     @ColumnInfo(name = "use_count", defaultValue = "0")
-    val useCount: Int = 0
+    val useCount: Int = 0,
+
+    @ColumnInfo(name = "watch_uri")
+    val watchUri: String? = null,
+
+    @ColumnInfo(name = "watch_folder_name")
+    val watchFolderName: String? = null
 )

@@ -163,6 +163,16 @@
     <string name="github_link">GitHub</string>
     <string name="github_url" translatable="false">https://github.com/kas-cor/webhookNoteSender</string>
 
+    <!-- Folder watcher -->
+    <string name="watch_folder">Watched folder</string>
+    <string name="watch_folder_hint">New files in this folder are automatically queued and deleted. Available for image, audio and video profiles.</string>
+    <string name="choose_folder">Choose folder</string>
+    <string name="stop_watching">Stop watching</string>
+    <string name="folder_watcher_channel_name">Folder watcher</string>
+    <string name="folder_watcher_channel_description">Monitors selected folders for new media files</string>
+    <string name="folder_watcher_notification_title">Folder watcher active</string>
+    <string name="folder_watcher_notification_text">Monitoring selected folders</string>
+
     <!-- Update check -->
     <string name="check_for_updates">Check for Updates</string>
     <string name="checking_for_updates">Checking…</string>

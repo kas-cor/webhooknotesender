@@ -14,7 +14,7 @@ import com.kascorp.webhooknotesender.data.local.entity.QueueItemEntity
         ProfileEntity::class,
         QueueItemEntity::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,6 +43,16 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_4_5 = Migration(4, 5) { db ->
             db.execSQL("ALTER TABLE profiles ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
+        }
+
+        val MIGRATION_5_6 = Migration(5, 6) { db ->
+            // Watched folder for image/audio/video profiles (SAF tree URI + display name)
+            db.execSQL("ALTER TABLE profiles ADD COLUMN watch_uri TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE profiles ADD COLUMN watch_folder_name TEXT DEFAULT NULL")
+        }
+
+        val MIGRATION_6_7 = Migration(6, 7) { db ->
+            db.execSQL("ALTER TABLE queue_items ADD COLUMN source_uri TEXT DEFAULT NULL")
         }
     }
 }

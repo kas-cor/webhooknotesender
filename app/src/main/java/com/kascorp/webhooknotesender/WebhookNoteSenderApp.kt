@@ -16,6 +16,7 @@ import com.kascorp.webhooknotesender.data.repository.ProfileRepository
 import com.kascorp.webhooknotesender.data.repository.QueueRepository
 import com.kascorp.webhooknotesender.util.LocaleHelper
 import com.kascorp.webhooknotesender.util.ShortcutHelper
+import com.kascorp.webhooknotesender.work.FolderWatcherService
 import com.kascorp.webhooknotesender.work.QueueWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +66,17 @@ class WebhookNoteSenderApp : Application(), Configuration.Provider {
         applicationScope.launch {
             val profiles = profileRepository.getTopProfiles(5).first()
             shortcutHelper.updateAppShortcuts(profiles)
+
+            // Restart folder watcher if any profile has a watch folder configured
+            if (profileRepository.getWatchedProfiles().first().isNotEmpty()) {
+                try {
+                    FolderWatcherService.start(this@WebhookNoteSenderApp)
+                } catch (e: Exception) {
+                    // e.g. ForegroundServiceStartNotAllowedException when the process
+                    // was started in the background (WorkManager) — retried on next launch
+                    Log.w("WebhookNoteSenderApp", "Failed to start folder watcher", e)
+                }
+            }
         }
     }
 }

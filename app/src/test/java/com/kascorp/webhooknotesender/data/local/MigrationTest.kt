@@ -113,4 +113,57 @@ class MigrationTest {
         cursor.close()
         db.close()
     }
+
+    @Test
+    fun `migration 5 to 6 adds watch folder columns`() {
+        val context = RuntimeEnvironment.getApplication()
+        val dbName = "migration_test_v5"
+        context.deleteDatabase(dbName)
+
+        val factory = FrameworkSQLiteOpenHelperFactory()
+
+        val v5Configuration = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(dbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(5) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    db.execSQL("""
+                        CREATE TABLE profiles (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            name TEXT NOT NULL,
+                            type TEXT NOT NULL,
+                            prompt TEXT NOT NULL,
+                            url TEXT NOT NULL,
+                            bearer_token TEXT,
+                            compress_enabled INTEGER NOT NULL DEFAULT 1,
+                            compression_quality INTEGER NOT NULL DEFAULT 70,
+                            use_count INTEGER NOT NULL DEFAULT 0
+                        )
+                    """)
+                }
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val v5Helper = factory.create(v5Configuration)
+        val db = v5Helper.writableDatabase
+
+        assertEquals("Database should be at version 5 before migration", 5, db.version)
+
+        // Insert a profile matching v5 schema
+        db.execSQL("""
+            INSERT INTO profiles (id, name, type, prompt, url, bearer_token, compress_enabled, compression_quality, use_count)
+            VALUES (1, 'Test Profile', 'audio', 'Test prompt', 'https://example.com', NULL, 1, 70, 0)
+        """)
+
+        // Run the 5→6 migration
+        AppDatabase.MIGRATION_5_6.migrate(db)
+
+        // Verify new columns exist and default to NULL
+        val cursor = db.query("SELECT watch_uri, watch_folder_name FROM profiles WHERE id = 1")
+        cursor.moveToFirst()
+        assertEquals("watch_uri should be NULL by default", null, cursor.getString(0))
+        assertEquals("watch_folder_name should be NULL by default", null, cursor.getString(1))
+        cursor.close()
+        db.close()
+    }
 }

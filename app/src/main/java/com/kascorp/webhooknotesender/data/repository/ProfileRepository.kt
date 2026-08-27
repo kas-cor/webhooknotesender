@@ -35,5 +35,7 @@ class ProfileRepository @Inject constructor(
 
     fun getTopProfiles(limit: Int): Flow<List<ProfileEntity>> = profileDao.getTopProfiles(limit)
 
+    fun getWatchedProfiles(): Flow<List<ProfileEntity>> = profileDao.getWatchedProfiles()
+
     suspend fun incrementUseCount(id: Long) = profileDao.incrementUseCount(id)
 }

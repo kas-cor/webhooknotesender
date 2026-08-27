@@ -37,7 +37,10 @@ data class QueueItemEntity(
     val lastError: String? = null,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "source_uri")
+    val sourceUri: String? = null
 )
 
 enum class QueueStatus {
