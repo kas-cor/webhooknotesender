@@ -97,9 +97,10 @@ class FolderWatcherService : Service() {
                 .mapNotNull { it.sourceUri }
                 .toSet()
             if (profiles.isEmpty()) {
-                // Nothing to watch anymore — shut down until next start() call
-                stopSelf()
-                return
+                // Keep the service alive: profiles may be updated while the
+                // app is in the background. The next poll will see them.
+                delay(POLL_INTERVAL_MS)
+                continue
             }
             // Drop state for profiles whose watch folder was removed
             folderStates.keys.retainAll(profiles.map { it.id })
@@ -147,7 +148,7 @@ class FolderWatcherService : Service() {
                 }
                 prev == snapshot -> {
                     val sightings = (state.sightings[name] ?: 1) + 1
-                    if (sightings >= FolderWatchRules.sightingsNeeded(snapshot.lastModified)) {
+                    if (sightings >= FolderWatchRules.sightingsNeeded(snapshot.lastModified) && snapshot.size >= 0) {
                         // File is stable — process it
                         state.known.remove(name)
                         state.sightings.remove(name)
@@ -174,6 +175,11 @@ class FolderWatcherService : Service() {
         state.known.keys.retainAll(current)
         state.failed.keys.retainAll(current)
         state.sightings.keys.retainAll(current)
+
+        // Once a queued source disappears, the worker has normally deleted it
+        // after successful delivery. Forget the marker so a new file with the
+        // same name can be accepted.
+        state.queued.removeAll { name -> name !in current }
     }
 
     /**
@@ -183,6 +189,7 @@ class FolderWatcherService : Service() {
     private suspend fun processFile(profile: ProfileEntity, name: String, doc: SafFolder.Doc): Boolean {
         return try {
             val bytes = SafFolder.read(contentResolver, doc.uri)
+            if (bytes.isEmpty() && doc.size > 0L) return false
             val base64: String
             val encoding: String?
             if (profile.compressEnabled) {
@@ -322,9 +329,11 @@ object SafFolder {
     /** Deletes a document. Returns true on success. */
     fun delete(contentResolver: ContentResolver, uri: Uri): Boolean {
         return try {
-            DocumentsContract.deleteDocument(contentResolver, uri)
+            val deleted = DocumentsContract.deleteDocument(contentResolver, uri)
+            Log.i("SafFolder", "deleteDocument($uri) returned $deleted")
+            deleted
         } catch (e: Exception) {
-            Log.w("SafFolder", "delete failed for $uri", e)
+            Log.e("SafFolder", "deleteDocument($uri) failed", e)
             false
         }
     }
