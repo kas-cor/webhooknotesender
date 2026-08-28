@@ -1,7 +1,6 @@
 package com.kascorp.webhooknotesender.work
 
 import android.content.Context
-import android.net.Uri
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -26,6 +25,7 @@ class QueueWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
+        private const val TAG = "QueueWorker"
         const val WORK_NAME = "queue_processing"
 
         /** Max send attempts before an item is permanently marked FAILED. */
@@ -111,11 +111,25 @@ class QueueWorker(
                     PayloadFileHelper.deletePayload(applicationContext, item.payloadFilePath)
                 }
                 queueRepository.markAsSent(item.id)
-                if (item.sourceUri != null) {
+                item.sourceUri?.let { sourceUri ->
+                    // SAF providers require DocumentsContract.deleteDocument;
+                    // ContentResolver.delete(uri, ...) is not supported reliably.
+                    android.util.Log.i(TAG, "Deleting watched source: $sourceUri")
                     try {
-                        applicationContext.contentResolver.delete(Uri.parse(item.sourceUri), null, null)
-                    } catch (_: Exception) {
-                        // The source may already have been removed or its SAF grant revoked.
+                        val parsedUri = android.net.Uri.parse(sourceUri)
+                        val deleted = SafFolder.delete(
+                            applicationContext.contentResolver,
+                            parsedUri
+                        )
+                        if (deleted) {
+                            android.util.Log.i(TAG, "Watched source deleted: $sourceUri")
+                        } else {
+                            // Keep SENT state: delivery succeeded. Log the failure;
+                            // the source may already be gone or the grant revoked.
+                            android.util.Log.w(TAG, "Watched source delete returned false: $sourceUri")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Watched source delete failed: $sourceUri", e)
                     }
                 }
                 true // success, no retry needed

@@ -1,6 +1,7 @@
 package com.kascorp.webhooknotesender.work
 
 import android.content.Context
+import android.net.Uri
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import java.io.File
@@ -16,6 +17,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -135,6 +137,32 @@ class QueueWorkerTest {
         }
         coVerify(exactly = 1) { queueRepository.getPendingItems() }
         coVerify(exactly = 0) { webhookApi.send(any(), any(), any()) }
+    }
+
+    @Test
+    fun `doWork deletes watched source after successful send`() = runTest {
+        val sourceUri = "content://com.android.externalstorage.documents/tree/primary%3ADownload/document/primary%3ADownload%2Fphoto.jpg"
+        val watchedItem = testItem.copy(sourceUri = sourceUri)
+        coEvery { queueRepository.getPendingItems() } returns listOf(watchedItem)
+        coEvery { queueRepository.updateStatus(any(), any(), any(), any()) } returns Unit
+        coEvery { webhookApi.send(watchedItem.url, watchedItem.jsonPayload, watchedItem.bearerToken) } returns
+                kotlin.Result.success("OK")
+        coEvery { queueRepository.markAsSent(watchedItem.id) } returns Unit
+        mockkObject(SafFolder)
+        mockkStatic("android.util.Log")
+        every { android.util.Log.i(any<String>(), any<String>()) } returns 0
+        every { android.util.Log.w(any<String>(), any<String>()) } returns 0
+        every { android.util.Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
+        val parsedSourceUri = mockk<Uri>()
+        mockkStatic(Uri::class)
+        every { Uri.parse(any<String>()) } returns parsedSourceUri
+        every { SafFolder.delete(context.contentResolver, any<Uri>()) } returns true
+
+        val result = createWorker().doWork()
+
+        assert(result == ListenableWorker.Result.success())
+        verify(exactly = 1) { SafFolder.delete(context.contentResolver, parsedSourceUri) }
+        coVerify(exactly = 1) { queueRepository.markAsSent(watchedItem.id) }
     }
 
     @Test
